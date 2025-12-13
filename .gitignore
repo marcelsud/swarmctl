@@ -1,5 +1,5 @@
-# Binaries
-swarmctl
+# Binaries (only in root, not cmd/swarmctl/)
+/swarmctl
 *.exe
 *.exe~
 *.dll
