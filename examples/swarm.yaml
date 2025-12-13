@@ -1,0 +1,23 @@
+# swarmctl configuration
+stack: myapp-production
+
+ssh:
+  host: manager.example.com
+  user: deploy
+  port: 22
+  # key: ~/.ssh/id_ed25519
+
+registry:
+  url: ghcr.io
+  username: myuser
+  # password via env SWARMCTL_REGISTRY_PASSWORD
+
+secrets:
+  - RAILS_MASTER_KEY
+  - DATABASE_URL
+
+accessories:
+  - redis
+  - postgres
+
+compose_file: docker-compose.yaml
