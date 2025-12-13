@@ -19,7 +19,7 @@ type TaskStatus struct {
 // GetStackTasks gets all tasks for the stack
 func (m *Manager) GetStackTasks() ([]TaskStatus, error) {
 	cmd := fmt.Sprintf("docker stack ps %s --format '{{.ID}}|{{.Name}}|{{.Image}}|{{.Node}}|{{.DesiredState}}|{{.CurrentState}}|{{.Error}}'", m.stackName)
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (m *Manager) GetServiceTasks(serviceName string) ([]TaskStatus, error) {
 	fullName := fmt.Sprintf("%s_%s", m.stackName, serviceName)
 	cmd := fmt.Sprintf("docker service ps %s --format '{{.ID}}|{{.Name}}|{{.Image}}|{{.Node}}|{{.DesiredState}}|{{.CurrentState}}|{{.Error}}'", fullName)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (m *Manager) WaitForConvergence(timeout int) error {
 	// Simple implementation: check if all tasks are running
 	cmd := fmt.Sprintf("docker stack ps %s --filter 'desired-state=running' --format '{{.CurrentState}}' | grep -v Running | wc -l", m.stackName)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func (m *Manager) WaitForConvergence(timeout int) error {
 
 // GetNodeInfo gets information about Swarm nodes
 func (m *Manager) GetNodeInfo() (string, error) {
-	result, err := m.client.Run("docker node ls --format 'table {{.Hostname}}\t{{.Status}}\t{{.Availability}}\t{{.ManagerStatus}}'")
+	result, err := m.exec.Run("docker node ls --format 'table {{.Hostname}}\t{{.Status}}\t{{.Availability}}\t{{.ManagerStatus}}'")
 	if err != nil {
 		return "", err
 	}

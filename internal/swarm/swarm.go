@@ -4,26 +4,26 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/marcelsud/swarmctl/internal/ssh"
+	"github.com/marcelsud/swarmctl/internal/executor"
 )
 
-// Manager handles Swarm operations via SSH
+// Manager handles Swarm operations
 type Manager struct {
-	client    *ssh.Client
+	exec      executor.Executor
 	stackName string
 }
 
 // NewManager creates a new Swarm manager
-func NewManager(client *ssh.Client, stackName string) *Manager {
+func NewManager(exec executor.Executor, stackName string) *Manager {
 	return &Manager{
-		client:    client,
+		exec:      exec,
 		stackName: stackName,
 	}
 }
 
 // IsSwarmInitialized checks if Swarm is initialized on the manager node
 func (m *Manager) IsSwarmInitialized() (bool, error) {
-	result, err := m.client.Run("docker info --format '{{.Swarm.LocalNodeState}}'")
+	result, err := m.exec.Run("docker info --format '{{.Swarm.LocalNodeState}}'")
 	if err != nil {
 		return false, err
 	}
@@ -34,7 +34,7 @@ func (m *Manager) IsSwarmInitialized() (bool, error) {
 
 // InitSwarm initializes Docker Swarm
 func (m *Manager) InitSwarm() error {
-	result, err := m.client.Run("docker swarm init")
+	result, err := m.exec.Run("docker swarm init")
 	if err != nil {
 		return fmt.Errorf("failed to init swarm: %w", err)
 	}
@@ -48,7 +48,7 @@ func (m *Manager) InitSwarm() error {
 
 // IsDockerInstalled checks if Docker is installed
 func (m *Manager) IsDockerInstalled() (bool, error) {
-	result, err := m.client.Run("docker --version")
+	result, err := m.exec.Run("docker --version")
 	if err != nil {
 		return false, err
 	}
@@ -57,7 +57,7 @@ func (m *Manager) IsDockerInstalled() (bool, error) {
 
 // GetDockerVersion returns the Docker version
 func (m *Manager) GetDockerVersion() (string, error) {
-	result, err := m.client.Run("docker --version")
+	result, err := m.exec.Run("docker --version")
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +68,7 @@ func (m *Manager) GetDockerVersion() (string, error) {
 func (m *Manager) CreateNetwork(name string) error {
 	// Check if network exists
 	checkCmd := fmt.Sprintf("docker network ls --filter name=^%s$ --format '{{.Name}}'", name)
-	result, err := m.client.Run(checkCmd)
+	result, err := m.exec.Run(checkCmd)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (m *Manager) CreateNetwork(name string) error {
 
 	// Create network
 	createCmd := fmt.Sprintf("docker network create --driver overlay --attachable %s", name)
-	result, err = m.client.Run(createCmd)
+	result, err = m.exec.Run(createCmd)
 	if err != nil {
 		return fmt.Errorf("failed to create network: %w", err)
 	}
@@ -98,7 +98,7 @@ func (m *Manager) RegistryLogin(url, username, password string) error {
 	}
 
 	cmd := fmt.Sprintf("echo '%s' | docker login %s -u %s --password-stdin", password, url, username)
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to login to registry: %w", err)
 	}

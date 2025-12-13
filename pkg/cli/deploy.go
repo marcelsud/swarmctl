@@ -7,7 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
-	"github.com/marcelsud/swarmctl/internal/ssh"
+	"github.com/marcelsud/swarmctl/internal/executor"
 	"github.com/marcelsud/swarmctl/internal/swarm"
 	"github.com/spf13/cobra"
 )
@@ -68,17 +68,21 @@ func runDeploy(cmd *cobra.Command, args []string) {
 	}
 	fmt.Printf("  %s %s\n", green("✓"), cfg.ComposeFile)
 
-	// Connect via SSH
-	fmt.Printf("%s Connecting to %s...\n", cyan("→"), cfg.SSH.Host)
-	client := ssh.NewClient(cfg.SSH.Host, cfg.SSH.Port, cfg.SSH.User, cfg.SSH.Key)
-	if err := client.Connect(); err != nil {
+	// Create executor
+	exec, err := executor.New(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to connect: %v\n", red("✗"), err)
 		os.Exit(1)
 	}
-	defer client.Close()
-	fmt.Printf("  %s Connected\n", green("✓"))
+	defer exec.Close()
 
-	mgr := swarm.NewManager(client, cfg.Stack)
+	if exec.IsLocal() {
+		fmt.Printf("%s Running locally\n", cyan("→"))
+	} else {
+		fmt.Printf("%s Connected to %s\n", green("✓"), cfg.SSH.Host)
+	}
+
+	mgr := swarm.NewManager(exec, cfg.Stack)
 
 	// Login to registry if configured
 	if cfg.Registry.URL != "" && cfg.Registry.Username != "" {

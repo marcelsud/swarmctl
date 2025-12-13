@@ -32,29 +32,28 @@ func (c *Config) Validate() error {
 		ve.Add("stack name is required")
 	}
 
-	if c.SSH.Host == "" {
-		ve.Add("ssh.host is required")
-	}
+	// SSH is optional - if host is provided, user is required
+	if c.SSH.Host != "" {
+		if c.SSH.User == "" {
+			ve.Add("ssh.user is required when ssh.host is set")
+		}
 
-	if c.SSH.User == "" {
-		ve.Add("ssh.user is required")
-	}
+		if c.SSH.Port <= 0 || c.SSH.Port > 65535 {
+			ve.Add("ssh.port must be between 1 and 65535")
+		}
 
-	if c.SSH.Port <= 0 || c.SSH.Port > 65535 {
-		ve.Add("ssh.port must be between 1 and 65535")
+		// Check if SSH key exists (if specified)
+		if c.SSH.Key != "" {
+			if _, err := os.Stat(c.SSH.Key); os.IsNotExist(err) {
+				ve.Add(fmt.Sprintf("SSH key file not found: %s", c.SSH.Key))
+			}
+		}
 	}
 
 	// Check if compose file exists
 	if c.ComposeFile != "" {
 		if _, err := os.Stat(c.ComposeFile); os.IsNotExist(err) {
 			ve.Add(fmt.Sprintf("compose file not found: %s", c.ComposeFile))
-		}
-	}
-
-	// Check if SSH key exists (if specified)
-	if c.SSH.Key != "" {
-		if _, err := os.Stat(c.SSH.Key); os.IsNotExist(err) {
-			ve.Add(fmt.Sprintf("SSH key file not found: %s", c.SSH.Key))
 		}
 	}
 

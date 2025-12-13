@@ -6,19 +6,19 @@ import (
 	"os"
 	"strings"
 
-	"github.com/marcelsud/swarmctl/internal/ssh"
+	"github.com/marcelsud/swarmctl/internal/executor"
 )
 
 // Manager handles Docker Swarm secrets
 type Manager struct {
-	client    *ssh.Client
+	exec      executor.Executor
 	stackName string
 }
 
 // NewManager creates a new secrets manager
-func NewManager(client *ssh.Client, stackName string) *Manager {
+func NewManager(exec executor.Executor, stackName string) *Manager {
 	return &Manager{
-		client:    client,
+		exec:      exec,
 		stackName: stackName,
 	}
 }
@@ -88,7 +88,7 @@ func (m *Manager) Create(name, value string) error {
 
 	// Check if secret exists
 	checkCmd := fmt.Sprintf("docker secret ls --filter name=%s --format '{{.Name}}'", secretName)
-	result, err := m.client.Run(checkCmd)
+	result, err := m.exec.Run(checkCmd)
 	if err != nil {
 		return err
 	}
@@ -96,12 +96,12 @@ func (m *Manager) Create(name, value string) error {
 	// Remove existing secret if it exists
 	if strings.TrimSpace(result.Stdout) != "" {
 		rmCmd := fmt.Sprintf("docker secret rm %s", secretName)
-		m.client.Run(rmCmd)
+		m.exec.Run(rmCmd)
 	}
 
 	// Create secret using echo and pipe
 	createCmd := fmt.Sprintf("echo -n '%s' | docker secret create %s -", value, secretName)
-	result, err = m.client.Run(createCmd)
+	result, err = m.exec.Run(createCmd)
 	if err != nil {
 		return fmt.Errorf("failed to create secret: %w", err)
 	}
@@ -116,7 +116,7 @@ func (m *Manager) Create(name, value string) error {
 // List lists all secrets for the stack
 func (m *Manager) List() ([]string, error) {
 	cmd := fmt.Sprintf("docker secret ls --filter name=%s_ --format '{{.Name}}'", m.stackName)
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (m *Manager) Delete(name string) error {
 	secretName := fmt.Sprintf("%s_%s", m.stackName, strings.ToLower(name))
 	cmd := fmt.Sprintf("docker secret rm %s", secretName)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to delete secret: %w", err)
 	}

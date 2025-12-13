@@ -44,9 +44,80 @@ func TestValidateRequiredFields(t *testing.T) {
 		t.Fatalf("expected ValidationError, got %T", err)
 	}
 
-	// Should have errors for stack, ssh.host, ssh.user, and ssh.port
-	if len(ve.Errors) < 3 {
-		t.Errorf("expected at least 3 validation errors, got %d: %v", len(ve.Errors), ve.Errors)
+	// Only stack is required (SSH is optional for local mode)
+	if len(ve.Errors) < 1 {
+		t.Errorf("expected at least 1 validation error, got %d: %v", len(ve.Errors), ve.Errors)
+	}
+
+	found := false
+	for _, e := range ve.Errors {
+		if strings.Contains(e, "stack name is required") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'stack name is required' error, got: %v", ve.Errors)
+	}
+}
+
+func TestValidateSSHUserRequiredWhenHostSet(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	composePath := filepath.Join(tmpDir, "docker-compose.yaml")
+	if err := os.WriteFile(composePath, []byte("version: '3.8'"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Host set but no user
+	cfg := &Config{
+		Stack: "myapp",
+		SSH: SSHConfig{
+			Host: "example.com",
+			Port: 22,
+		},
+		ComposeFile: composePath,
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validation error when ssh.host is set without ssh.user")
+	}
+
+	ve, ok := err.(*ValidationError)
+	if !ok {
+		t.Fatalf("expected ValidationError, got %T", err)
+	}
+
+	found := false
+	for _, e := range ve.Errors {
+		if strings.Contains(e, "ssh.user is required when ssh.host is set") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'ssh.user is required when ssh.host is set' error, got: %v", ve.Errors)
+	}
+}
+
+func TestValidateLocalModeNoSSH(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	composePath := filepath.Join(tmpDir, "docker-compose.yaml")
+	if err := os.WriteFile(composePath, []byte("version: '3.8'"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// No SSH config - should be valid for local mode
+	cfg := &Config{
+		Stack:       "myapp",
+		ComposeFile: composePath,
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("expected no validation error for local mode (no SSH), got: %v", err)
 	}
 }
 

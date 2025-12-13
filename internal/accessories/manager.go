@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/marcelsud/swarmctl/internal/ssh"
+	"github.com/marcelsud/swarmctl/internal/executor"
 )
 
 // Manager handles accessory services
 type Manager struct {
-	client    *ssh.Client
+	exec      executor.Executor
 	stackName string
 }
 
 // NewManager creates a new accessories manager
-func NewManager(client *ssh.Client, stackName string) *Manager {
+func NewManager(exec executor.Executor, stackName string) *Manager {
 	return &Manager{
-		client:    client,
+		exec:      exec,
 		stackName: stackName,
 	}
 }
@@ -33,7 +33,7 @@ func (m *Manager) Start(name string) error {
 	fullName := fmt.Sprintf("%s_%s", m.stackName, name)
 	cmd := fmt.Sprintf("docker service scale %s=1", fullName)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to start accessory: %w", err)
 	}
@@ -50,7 +50,7 @@ func (m *Manager) Stop(name string) error {
 	fullName := fmt.Sprintf("%s_%s", m.stackName, name)
 	cmd := fmt.Sprintf("docker service scale %s=0", fullName)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to stop accessory: %w", err)
 	}
@@ -67,7 +67,7 @@ func (m *Manager) Restart(name string) error {
 	fullName := fmt.Sprintf("%s_%s", m.stackName, name)
 	cmd := fmt.Sprintf("docker service update --force %s", fullName)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to restart accessory: %w", err)
 	}
@@ -84,7 +84,7 @@ func (m *Manager) GetStatus(name string) (*AccessoryStatus, error) {
 	fullName := fmt.Sprintf("%s_%s", m.stackName, name)
 	cmd := fmt.Sprintf("docker service ls --filter name=%s --format '{{.Name}}|{{.Replicas}}'", fullName)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return nil, err
 	}

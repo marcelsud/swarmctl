@@ -6,8 +6,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
+	"github.com/marcelsud/swarmctl/internal/executor"
 	"github.com/marcelsud/swarmctl/internal/secrets"
-	"github.com/marcelsud/swarmctl/internal/ssh"
 	"github.com/spf13/cobra"
 )
 
@@ -79,16 +79,15 @@ func runSecretsPush(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// Connect via SSH
-	fmt.Printf("%s Connecting to %s...\n", cyan("→"), cfg.SSH.Host)
-	client := ssh.NewClient(cfg.SSH.Host, cfg.SSH.Port, cfg.SSH.User, cfg.SSH.Key)
-	if err := client.Connect(); err != nil {
+	// Create executor
+	exec, err := executor.New(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to connect: %v\n", red("✗"), err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer exec.Close()
 
-	mgr := secrets.NewManager(client, cfg.Stack)
+	mgr := secrets.NewManager(exec, cfg.Stack)
 
 	// Push secrets
 	fmt.Printf("%s Pushing %d secret(s)...\n", cyan("→"), len(secretList))
@@ -116,15 +115,15 @@ func runSecretsList(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// Connect via SSH
-	client := ssh.NewClient(cfg.SSH.Host, cfg.SSH.Port, cfg.SSH.User, cfg.SSH.Key)
-	if err := client.Connect(); err != nil {
+	// Create executor
+	exec, err := executor.New(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to connect: %v\n", red("✗"), err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer exec.Close()
 
-	mgr := secrets.NewManager(client, cfg.Stack)
+	mgr := secrets.NewManager(exec, cfg.Stack)
 
 	// List secrets
 	secretsList, err := mgr.List()

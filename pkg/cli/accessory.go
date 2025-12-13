@@ -7,7 +7,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/accessories"
 	"github.com/marcelsud/swarmctl/internal/config"
-	"github.com/marcelsud/swarmctl/internal/ssh"
+	"github.com/marcelsud/swarmctl/internal/executor"
 	"github.com/spf13/cobra"
 )
 
@@ -63,14 +63,14 @@ func runAccessoryList(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	client := ssh.NewClient(cfg.SSH.Host, cfg.SSH.Port, cfg.SSH.User, cfg.SSH.Key)
-	if err := client.Connect(); err != nil {
+	exec, err := executor.New(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to connect: %v\n", red("✗"), err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer exec.Close()
 
-	mgr := accessories.NewManager(client, cfg.Stack)
+	mgr := accessories.NewManager(exec, cfg.Stack)
 
 	statuses, _ := mgr.ListAll(cfg.Accessories)
 
@@ -98,14 +98,14 @@ func runAccessoryStart(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	client := ssh.NewClient(cfg.SSH.Host, cfg.SSH.Port, cfg.SSH.User, cfg.SSH.Key)
-	if err := client.Connect(); err != nil {
+	exec, err := executor.New(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to connect: %v\n", red("✗"), err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer exec.Close()
 
-	mgr := accessories.NewManager(client, cfg.Stack)
+	mgr := accessories.NewManager(exec, cfg.Stack)
 
 	targets := getTargets(target, cfg.Accessories)
 
@@ -132,14 +132,14 @@ func runAccessoryStop(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	client := ssh.NewClient(cfg.SSH.Host, cfg.SSH.Port, cfg.SSH.User, cfg.SSH.Key)
-	if err := client.Connect(); err != nil {
+	exec, err := executor.New(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to connect: %v\n", red("✗"), err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer exec.Close()
 
-	mgr := accessories.NewManager(client, cfg.Stack)
+	mgr := accessories.NewManager(exec, cfg.Stack)
 
 	targets := getTargets(target, cfg.Accessories)
 
@@ -166,14 +166,14 @@ func runAccessoryRestart(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	client := ssh.NewClient(cfg.SSH.Host, cfg.SSH.Port, cfg.SSH.User, cfg.SSH.Key)
-	if err := client.Connect(); err != nil {
+	exec, err := executor.New(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to connect: %v\n", red("✗"), err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer exec.Close()
 
-	mgr := accessories.NewManager(client, cfg.Stack)
+	mgr := accessories.NewManager(exec, cfg.Stack)
 
 	targets := getTargets(target, cfg.Accessories)
 

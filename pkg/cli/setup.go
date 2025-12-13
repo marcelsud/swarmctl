@@ -6,7 +6,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
-	"github.com/marcelsud/swarmctl/internal/ssh"
+	"github.com/marcelsud/swarmctl/internal/executor"
 	"github.com/marcelsud/swarmctl/internal/swarm"
 	"github.com/spf13/cobra"
 )
@@ -16,7 +16,7 @@ var setupCmd = &cobra.Command{
 	Short: "Setup the Swarm cluster",
 	Long: `Setup the Swarm cluster on the manager node.
 This command will:
-- Connect via SSH to the manager
+- Connect via SSH to the manager (or run locally if no SSH configured)
 - Verify Docker is installed
 - Initialize Swarm if necessary
 - Create overlay network for the stack
@@ -39,25 +39,29 @@ func runSetup(cmd *cobra.Command, args []string) {
 	}
 
 	// Validate config (skip compose file check for setup)
-	if cfg.Stack == "" || cfg.SSH.Host == "" || cfg.SSH.User == "" {
-		fmt.Fprintf(os.Stderr, "%s Invalid configuration: stack, ssh.host, and ssh.user are required\n", red("✗"))
+	if cfg.Stack == "" {
+		fmt.Fprintf(os.Stderr, "%s Invalid configuration: stack is required\n", red("✗"))
 		os.Exit(1)
 	}
 
 	fmt.Printf("  Stack: %s\n", cfg.Stack)
-	fmt.Printf("  Host:  %s@%s:%d\n", cfg.SSH.User, cfg.SSH.Host, cfg.SSH.Port)
 
-	// Connect via SSH
-	fmt.Printf("%s Connecting to %s...\n", cyan("→"), cfg.SSH.Host)
-	client := ssh.NewClient(cfg.SSH.Host, cfg.SSH.Port, cfg.SSH.User, cfg.SSH.Key)
-	if err := client.Connect(); err != nil {
+	// Create executor
+	exec, err := executor.New(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to connect: %v\n", red("✗"), err)
 		os.Exit(1)
 	}
-	defer client.Close()
-	fmt.Printf("  %s Connected\n", green("✓"))
+	defer exec.Close()
 
-	mgr := swarm.NewManager(client, cfg.Stack)
+	if exec.IsLocal() {
+		fmt.Printf("%s Running locally\n", cyan("→"))
+	} else {
+		fmt.Printf("  Host:  %s@%s:%d\n", cfg.SSH.User, cfg.SSH.Host, cfg.SSH.Port)
+		fmt.Printf("  %s Connected\n", green("✓"))
+	}
+
+	mgr := swarm.NewManager(exec, cfg.Stack)
 
 	// Check Docker installation
 	fmt.Printf("%s Checking Docker installation...\n", cyan("→"))

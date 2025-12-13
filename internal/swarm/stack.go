@@ -7,15 +7,15 @@ import (
 
 // DeployStack deploys a stack using docker stack deploy
 func (m *Manager) DeployStack(composeContent []byte) error {
-	// Write compose file to remote
-	remotePath := fmt.Sprintf("/tmp/%s-compose.yaml", m.stackName)
-	if err := m.client.WriteFile(remotePath, composeContent); err != nil {
-		return fmt.Errorf("failed to upload compose file: %w", err)
+	// Write compose file
+	composePath := fmt.Sprintf("/tmp/%s-compose.yaml", m.stackName)
+	if err := m.exec.WriteFile(composePath, composeContent); err != nil {
+		return fmt.Errorf("failed to write compose file: %w", err)
 	}
 
 	// Deploy stack
-	cmd := fmt.Sprintf("docker stack deploy -c %s %s --with-registry-auth", remotePath, m.stackName)
-	result, err := m.client.Run(cmd)
+	cmd := fmt.Sprintf("docker stack deploy -c %s %s --with-registry-auth", composePath, m.stackName)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to deploy stack: %w", err)
 	}
@@ -25,7 +25,7 @@ func (m *Manager) DeployStack(composeContent []byte) error {
 	}
 
 	// Clean up temp file
-	m.client.Run(fmt.Sprintf("rm -f %s", remotePath))
+	m.exec.Run(fmt.Sprintf("rm -f %s", composePath))
 
 	return nil
 }
@@ -33,7 +33,7 @@ func (m *Manager) DeployStack(composeContent []byte) error {
 // RemoveStack removes a stack
 func (m *Manager) RemoveStack() error {
 	cmd := fmt.Sprintf("docker stack rm %s", m.stackName)
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to remove stack: %w", err)
 	}
@@ -47,7 +47,7 @@ func (m *Manager) RemoveStack() error {
 
 // ListStacks lists all stacks
 func (m *Manager) ListStacks() ([]string, error) {
-	result, err := m.client.Run("docker stack ls --format '{{.Name}}'")
+	result, err := m.exec.Run("docker stack ls --format '{{.Name}}'")
 	if err != nil {
 		return nil, err
 	}

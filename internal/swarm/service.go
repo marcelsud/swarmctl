@@ -17,7 +17,7 @@ type ServiceStatus struct {
 // ListServices lists all services in the stack
 func (m *Manager) ListServices() ([]ServiceStatus, error) {
 	cmd := fmt.Sprintf("docker stack services %s --format '{{.Name}}|{{.Mode}}|{{.Replicas}}|{{.Image}}|{{.Ports}}'", m.stackName)
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (m *Manager) GetServiceStatus(serviceName string) (*ServiceStatus, error) {
 	fullName := fmt.Sprintf("%s_%s", m.stackName, serviceName)
 	cmd := fmt.Sprintf("docker service inspect %s --format '{{.Spec.Name}}|{{.Spec.Mode.Replicated.Replicas}}|{{.Spec.TaskTemplate.ContainerSpec.Image}}'", fullName)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (m *Manager) RollbackService(serviceName string) error {
 	fullName := fmt.Sprintf("%s_%s", m.stackName, serviceName)
 	cmd := fmt.Sprintf("docker service update --rollback %s", fullName)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to rollback service: %w", err)
 	}
@@ -92,7 +92,7 @@ func (m *Manager) ScaleService(serviceName string, replicas int) error {
 	fullName := fmt.Sprintf("%s_%s", m.stackName, serviceName)
 	cmd := fmt.Sprintf("docker service scale %s=%d", fullName, replicas)
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to scale service: %w", err)
 	}
@@ -119,7 +119,7 @@ func (m *Manager) GetServiceLogs(serviceName string, follow bool, since string, 
 		cmd += " --follow"
 	}
 
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return "", err
 	}
@@ -133,7 +133,7 @@ func (m *Manager) FindRunningContainer(serviceName string) (string, error) {
 
 	// Get running tasks for the service
 	cmd := fmt.Sprintf("docker service ps %s --filter 'desired-state=running' --format '{{.ID}}' | head -1", fullName)
-	result, err := m.client.Run(cmd)
+	result, err := m.exec.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("failed to find tasks: %w", err)
 	}
@@ -145,7 +145,7 @@ func (m *Manager) FindRunningContainer(serviceName string) (string, error) {
 
 	// Get container ID from task
 	cmd = fmt.Sprintf("docker inspect --format '{{.Status.ContainerStatus.ContainerID}}' %s", taskID)
-	result, err = m.client.Run(cmd)
+	result, err = m.exec.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("failed to get container ID: %w", err)
 	}

@@ -6,7 +6,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
-	"github.com/marcelsud/swarmctl/internal/ssh"
+	"github.com/marcelsud/swarmctl/internal/executor"
 	"github.com/marcelsud/swarmctl/internal/swarm"
 	"github.com/spf13/cobra"
 )
@@ -43,15 +43,15 @@ func runLogs(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// Connect via SSH
-	client := ssh.NewClient(cfg.SSH.Host, cfg.SSH.Port, cfg.SSH.User, cfg.SSH.Key)
-	if err := client.Connect(); err != nil {
+	// Create executor
+	exec, err := executor.New(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to connect: %v\n", red("✗"), err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer exec.Close()
 
-	mgr := swarm.NewManager(client, cfg.Stack)
+	mgr := swarm.NewManager(exec, cfg.Stack)
 
 	// If no service specified, list available services
 	if len(args) == 0 {
@@ -79,7 +79,7 @@ func runLogs(cmd *cobra.Command, args []string) {
 	// For follow mode, stream logs interactively
 	if logsFollow {
 		fmt.Printf("%s Streaming logs for %s (Ctrl+C to stop)...\n\n", cyan("→"), serviceName)
-		runStreamLogs(client, cfg.Stack, serviceName)
+		runStreamLogs(exec, cfg.Stack, serviceName)
 		return
 	}
 
@@ -93,7 +93,7 @@ func runLogs(cmd *cobra.Command, args []string) {
 	fmt.Print(logs)
 }
 
-func runStreamLogs(client *ssh.Client, stackName, serviceName string) {
+func runStreamLogs(exec executor.Executor, stackName, serviceName string) {
 	fullName := fmt.Sprintf("%s_%s", stackName, serviceName)
 	cmd := fmt.Sprintf("docker service logs %s --follow --tail %d", fullName, logsTail)
 	if logsSince != "" {
@@ -101,7 +101,7 @@ func runStreamLogs(client *ssh.Client, stackName, serviceName string) {
 	}
 
 	// Run interactively to stream output
-	if err := client.RunStream(cmd, os.Stdout, os.Stderr); err != nil {
+	if err := exec.RunStream(cmd, os.Stdout, os.Stderr); err != nil {
 		// Ignore error on Ctrl+C
 		return
 	}
