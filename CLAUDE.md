@@ -1,11 +1,12 @@
 # swarmctl
 
-CLI para deploy e gerenciamento de stacks Docker Swarm via SSH, inspirada no Kamal.
+CLI para deploy e gerenciamento de stacks Docker Swarm, inspirada no Kamal. Suporta execução local ou remota via SSH.
 
 ## Documentação
 
 - [Getting Started](docs/getting-started.md) - Instalação e primeiro deploy
 - [Configuração](docs/configuration.md) - Referência do swarm.yaml
+- [Modo Local](docs/local-mode.md) - Executar sem SSH
 - [Comandos](docs/commands.md) - Todos os comandos disponíveis
 - [Multi-ambiente](docs/multi-environment.md) - Staging/Production
 
@@ -48,6 +49,10 @@ swarmctl/
 │   │   ├── parser.go           # Load swarm.yaml
 │   │   ├── validation.go       # Validação de campos
 │   │   └── validation_test.go
+│   ├── executor/
+│   │   ├── executor.go         # Interface de execução
+│   │   ├── local.go            # Execução local (os/exec)
+│   │   └── ssh.go              # Execução remota (SSH)
 │   ├── secrets/
 │   │   ├── manager.go          # Push/List secrets
 │   │   └── manager_test.go
@@ -70,7 +75,6 @@ swarmctl/
 │   ├── secrets.go              # swarmctl secrets
 │   └── accessory.go            # swarmctl accessory
 ├── docs/                       # Documentação
-├── e2e-test/                   # Arquivos de teste E2E
 ├── go.mod
 └── go.sum
 ```
@@ -110,12 +114,24 @@ swarmctl deploy
          │
          ▼
 ┌─────────────────┐
-│ SSH connect     │  ← ssh-agent ou key file
+│ ssh.host set?   │
 └────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+   Sim       Não
+    │         │
+    ▼         ▼
+┌────────┐ ┌────────┐
+│  SSH   │ │ Local  │  ← Modo de execução
+│connect │ │executor│
+└───┬────┘ └───┬────┘
+    │          │
+    └────┬─────┘
          │
          ▼
 ┌─────────────────┐
-│ Registry login  │  ← SWARMCTL_REGISTRY_PASSWORD
+│ Registry login  │  ← SWARMCTL_REGISTRY_PASSWORD (opcional)
 └────────┬────────┘
          │
          ▼

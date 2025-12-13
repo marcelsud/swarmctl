@@ -4,14 +4,22 @@ Guia de instalação e primeiro deploy com swarmctl.
 
 ## Pré-requisitos
 
-### Na sua máquina local
+O swarmctl pode rodar em dois modos: **local** ou **remoto (SSH)**.
 
+### Modo Local
+
+- Docker 24.0+ instalado
+- Docker Swarm inicializado (`docker swarm init`)
+- Usuário com permissão para executar Docker
+
+### Modo Remoto (SSH)
+
+**Na sua máquina local:**
 - Go 1.22+ (para build)
 - SSH client configurado
 - Chave SSH (recomendado: ed25519)
 
-### No servidor de destino
-
+**No servidor de destino:**
 - Docker 24.0+
 - Porta 22 (SSH) acessível
 - Usuário com permissão para executar Docker
@@ -39,7 +47,54 @@ sudo mv swarmctl /usr/local/bin/
 swarmctl --version
 ```
 
-## Primeiro Deploy
+## Primeiro Deploy (Modo Local)
+
+Ideal para desenvolvimento ou quando você está no próprio manager node.
+
+### 1. Inicializar Swarm
+
+```bash
+docker swarm init
+```
+
+### 2. Criar configuração
+
+No diretório do seu projeto, crie `swarm.yaml`:
+
+```yaml
+stack: myapp
+
+compose_file: docker-compose.yaml
+# Sem seção ssh = modo local
+```
+
+### 3. Criar docker-compose.yaml
+
+```yaml
+version: "3.8"
+
+services:
+  web:
+    image: nginx:alpine
+    deploy:
+      replicas: 2
+    ports:
+      - "80:80"
+```
+
+### 4. Deploy
+
+```bash
+swarmctl setup
+swarmctl deploy
+swarmctl status
+```
+
+---
+
+## Primeiro Deploy (Modo Remoto via SSH)
+
+Para deploy em servidores remotos.
 
 ### 1. Preparar o servidor
 
@@ -204,5 +259,6 @@ ssh -i ~/.ssh/id_ed25519 deploy@seu-servidor.com "docker info"
 ## Próximos Passos
 
 - [Configuração](./configuration.md) - Referência completa do swarm.yaml
+- [Modo Local](./local-mode.md) - Executar sem SSH
 - [Comandos](./commands.md) - Todos os comandos disponíveis
 - [Multi-ambiente](./multi-environment.md) - Configurar staging/production

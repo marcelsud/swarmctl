@@ -18,7 +18,7 @@ Arquivo principal de configuração do swarmctl.
 # Nome do stack no Docker Swarm
 stack: myapp-production
 
-# Conexão SSH ao manager node
+# Conexão SSH ao manager node (opcional - omita para modo local)
 ssh:
   host: manager.example.com    # Hostname ou IP
   user: deploy                 # Usuário SSH
@@ -59,22 +59,46 @@ stack: myapp-production
 
 Resultado: serviços serão `myapp-production_web`, `myapp-production_api`, etc.
 
-### ssh (obrigatório)
+### ssh (opcional)
 
 Configuração de conexão SSH ao manager node do Swarm.
 
+> **Modo Local:** Se a seção `ssh` for omitida, o swarmctl executa comandos Docker diretamente na máquina local. Veja [Modo Local](./local-mode.md) para mais detalhes.
+
 | Campo | Obrigatório | Default | Descrição |
 |-------|-------------|---------|-----------|
-| host | Sim | - | Hostname ou IP do servidor |
-| user | Sim | - | Usuário SSH |
+| host | Sim* | - | Hostname ou IP do servidor |
+| user | Sim* | - | Usuário SSH |
 | port | Não | 22 | Porta SSH |
 | key | Não | - | Caminho para chave privada |
+
+\* Obrigatório apenas quando a seção `ssh` está presente.
 
 **Autenticação SSH:**
 
 1. **ssh-agent** (recomendado): Se `key` não for especificado, usa o ssh-agent
 2. **Chave privada**: Especifique o caminho em `key`
 3. **Chaves padrão**: Tenta `~/.ssh/id_ed25519` e `~/.ssh/id_rsa`
+
+**Exemplo - Modo Local (sem SSH):**
+
+```yaml
+stack: myapp-dev
+compose_file: docker-compose.yaml
+# Sem seção ssh = executa localmente
+```
+
+**Exemplo - Modo Remoto (com SSH):**
+
+```yaml
+stack: myapp-production
+
+ssh:
+  host: manager.example.com
+  user: deploy
+
+compose_file: docker-compose.yaml
+```
 
 ### registry (opcional)
 
