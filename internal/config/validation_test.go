@@ -291,3 +291,100 @@ func TestValidateWithExistingSSHKey(t *testing.T) {
 		t.Errorf("expected no validation error, got: %v", err)
 	}
 }
+
+func TestValidateModeSwarm(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	composePath := filepath.Join(tmpDir, "docker-compose.yaml")
+	if err := os.WriteFile(composePath, []byte("version: '3.8'"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		Stack:       "myapp",
+		Mode:        ModeSwarm,
+		ComposeFile: composePath,
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("expected no validation error for swarm mode, got: %v", err)
+	}
+}
+
+func TestValidateModeCompose(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	composePath := filepath.Join(tmpDir, "docker-compose.yaml")
+	if err := os.WriteFile(composePath, []byte("version: '3.8'"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		Stack:       "myapp",
+		Mode:        ModeCompose,
+		ComposeFile: composePath,
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("expected no validation error for compose mode, got: %v", err)
+	}
+}
+
+func TestValidateModeInvalid(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	composePath := filepath.Join(tmpDir, "docker-compose.yaml")
+	if err := os.WriteFile(composePath, []byte("version: '3.8'"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		Stack:       "myapp",
+		Mode:        "kubernetes", // invalid mode
+		ComposeFile: composePath,
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validation error for invalid mode")
+	}
+
+	ve, ok := err.(*ValidationError)
+	if !ok {
+		t.Fatalf("expected ValidationError, got %T", err)
+	}
+
+	found := false
+	for _, e := range ve.Errors {
+		if strings.Contains(e, "invalid mode") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'invalid mode' error, got: %v", ve.Errors)
+	}
+}
+
+func TestValidateModeEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	composePath := filepath.Join(tmpDir, "docker-compose.yaml")
+	if err := os.WriteFile(composePath, []byte("version: '3.8'"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Empty mode should be valid (defaults to swarm)
+	cfg := &Config{
+		Stack:       "myapp",
+		Mode:        "",
+		ComposeFile: composePath,
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("expected no validation error for empty mode, got: %v", err)
+	}
+}

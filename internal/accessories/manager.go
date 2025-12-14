@@ -1,9 +1,11 @@
 package accessories
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/marcelsud/swarmctl/internal/config"
 	"github.com/marcelsud/swarmctl/internal/executor"
 )
 
@@ -11,13 +13,15 @@ import (
 type Manager struct {
 	exec      executor.Executor
 	stackName string
+	mode      config.DeploymentMode
 }
 
 // NewManager creates a new accessories manager
-func NewManager(exec executor.Executor, stackName string) *Manager {
+func NewManager(exec executor.Executor, stackName string, mode config.DeploymentMode) *Manager {
 	return &Manager{
 		exec:      exec,
 		stackName: stackName,
+		mode:      mode,
 	}
 }
 
@@ -28,10 +32,16 @@ type AccessoryStatus struct {
 	Running  bool
 }
 
-// Start starts an accessory service by scaling it to 1
+// Start starts an accessory service
 func (m *Manager) Start(name string) error {
-	fullName := fmt.Sprintf("%s_%s", m.stackName, name)
-	cmd := fmt.Sprintf("docker service scale %s=1", fullName)
+	var cmd string
+
+	if m.mode == config.ModeCompose {
+		cmd = fmt.Sprintf("docker compose -p %s start %s", m.stackName, name)
+	} else {
+		fullName := fmt.Sprintf("%s_%s", m.stackName, name)
+		cmd = fmt.Sprintf("docker service scale %s=1", fullName)
+	}
 
 	result, err := m.exec.Run(cmd)
 	if err != nil {
@@ -45,10 +55,16 @@ func (m *Manager) Start(name string) error {
 	return nil
 }
 
-// Stop stops an accessory service by scaling it to 0
+// Stop stops an accessory service
 func (m *Manager) Stop(name string) error {
-	fullName := fmt.Sprintf("%s_%s", m.stackName, name)
-	cmd := fmt.Sprintf("docker service scale %s=0", fullName)
+	var cmd string
+
+	if m.mode == config.ModeCompose {
+		cmd = fmt.Sprintf("docker compose -p %s stop %s", m.stackName, name)
+	} else {
+		fullName := fmt.Sprintf("%s_%s", m.stackName, name)
+		cmd = fmt.Sprintf("docker service scale %s=0", fullName)
+	}
 
 	result, err := m.exec.Run(cmd)
 	if err != nil {
@@ -64,8 +80,14 @@ func (m *Manager) Stop(name string) error {
 
 // Restart restarts an accessory service
 func (m *Manager) Restart(name string) error {
-	fullName := fmt.Sprintf("%s_%s", m.stackName, name)
-	cmd := fmt.Sprintf("docker service update --force %s", fullName)
+	var cmd string
+
+	if m.mode == config.ModeCompose {
+		cmd = fmt.Sprintf("docker compose -p %s restart %s", m.stackName, name)
+	} else {
+		fullName := fmt.Sprintf("%s_%s", m.stackName, name)
+		cmd = fmt.Sprintf("docker service update --force %s", fullName)
+	}
 
 	result, err := m.exec.Run(cmd)
 	if err != nil {
@@ -81,6 +103,13 @@ func (m *Manager) Restart(name string) error {
 
 // GetStatus gets the status of an accessory service
 func (m *Manager) GetStatus(name string) (*AccessoryStatus, error) {
+	if m.mode == config.ModeCompose {
+		return m.getComposeStatus(name)
+	}
+	return m.getSwarmStatus(name)
+}
+
+func (m *Manager) getSwarmStatus(name string) (*AccessoryStatus, error) {
 	fullName := fmt.Sprintf("%s_%s", m.stackName, name)
 	cmd := fmt.Sprintf("docker service ls --filter name=%s --format '{{.Name}}|{{.Replicas}}'", fullName)
 
@@ -100,6 +129,58 @@ func (m *Manager) GetStatus(name string) (*AccessoryStatus, error) {
 
 	replicas := parts[1]
 	running := !strings.HasPrefix(replicas, "0/")
+
+	return &AccessoryStatus{
+		Name:     name,
+		Replicas: replicas,
+		Running:  running,
+	}, nil
+}
+
+func (m *Manager) getComposeStatus(name string) (*AccessoryStatus, error) {
+	cmd := fmt.Sprintf("docker compose -p %s ps %s --format json", m.stackName, name)
+
+	result, err := m.exec.Run(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(result.Stdout) == "" {
+		return nil, fmt.Errorf("accessory %s not found", name)
+	}
+
+	// Parse JSON output (docker compose ps outputs one JSON per line)
+	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
+	running := false
+	count := 0
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		var container struct {
+			State string `json:"State"`
+		}
+
+		if err := json.Unmarshal([]byte(line), &container); err != nil {
+			continue
+		}
+
+		count++
+		if strings.ToLower(container.State) == "running" {
+			running = true
+		}
+	}
+
+	replicas := fmt.Sprintf("%d", count)
+	if count == 0 {
+		replicas = "not running"
+	} else if running {
+		replicas = fmt.Sprintf("%d/%d", count, count)
+	} else {
+		replicas = fmt.Sprintf("0/%d", count)
+	}
 
 	return &AccessoryStatus{
 		Name:     name,

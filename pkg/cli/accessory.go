@@ -70,7 +70,7 @@ func runAccessoryList(cmd *cobra.Command, args []string) {
 	}
 	defer exec.Close()
 
-	mgr := accessories.NewManager(exec, cfg.Stack)
+	mgr := accessories.NewManager(exec, cfg.Stack, cfg.Mode)
 
 	statuses, _ := mgr.ListAll(cfg.Accessories)
 
@@ -105,7 +105,7 @@ func runAccessoryStart(cmd *cobra.Command, args []string) {
 	}
 	defer exec.Close()
 
-	mgr := accessories.NewManager(exec, cfg.Stack)
+	mgr := accessories.NewManager(exec, cfg.Stack, cfg.Mode)
 
 	targets := getTargets(target, cfg.Accessories)
 
@@ -139,7 +139,7 @@ func runAccessoryStop(cmd *cobra.Command, args []string) {
 	}
 	defer exec.Close()
 
-	mgr := accessories.NewManager(exec, cfg.Stack)
+	mgr := accessories.NewManager(exec, cfg.Stack, cfg.Mode)
 
 	targets := getTargets(target, cfg.Accessories)
 
@@ -173,7 +173,7 @@ func runAccessoryRestart(cmd *cobra.Command, args []string) {
 	}
 	defer exec.Close()
 
-	mgr := accessories.NewManager(exec, cfg.Stack)
+	mgr := accessories.NewManager(exec, cfg.Stack, cfg.Mode)
 
 	targets := getTargets(target, cfg.Accessories)
 

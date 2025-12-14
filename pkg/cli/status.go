@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
+	"github.com/marcelsud/swarmctl/internal/deployment"
 	"github.com/marcelsud/swarmctl/internal/executor"
 	"github.com/marcelsud/swarmctl/internal/swarm"
 	"github.com/spf13/cobra"
@@ -42,10 +43,11 @@ func runStatus(cmd *cobra.Command, args []string) {
 	}
 	defer exec.Close()
 
-	mgr := swarm.NewManager(exec, cfg.Stack)
+	// Create deployment manager
+	mgr := deployment.New(cfg, exec)
 
-	// Check if stack exists
-	exists, err := mgr.StackExists()
+	// Check if stack/project exists
+	exists, err := mgr.Exists()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to check stack: %v\n", red("✗"), err)
 		os.Exit(1)
@@ -56,12 +58,14 @@ func runStatus(cmd *cobra.Command, args []string) {
 		os.Exit(0)
 	}
 
-	fmt.Printf("%s Stack: %s\n\n", cyan("→"), bold(cfg.Stack))
+	// Show stack info with mode
+	modeStr := mgr.GetMode()
+	fmt.Printf("%s Stack: %s (%s mode)\n\n", cyan("→"), bold(cfg.Stack), modeStr)
 
 	// If service specified, show detailed status
 	if len(args) > 0 {
 		serviceName := args[0]
-		showServiceStatus(mgr, serviceName, green, red, yellow, cyan)
+		showServiceStatus(cfg, exec, mgr, serviceName, green, red, yellow, cyan)
 		return
 	}
 
@@ -88,9 +92,55 @@ func runStatus(cmd *cobra.Command, args []string) {
 		)
 	}
 
-	// Show tasks
+	// Show tasks/containers based on mode
+	if cfg.Mode == config.ModeCompose {
+		showComposeContainers(mgr, green, red, yellow, cyan)
+	} else {
+		showSwarmTasks(exec, cfg.Stack, green, red, yellow, cyan)
+	}
+}
+
+func showComposeContainers(mgr deployment.Manager, green, red, yellow, cyan func(a ...interface{}) string) {
+	fmt.Printf("\n%s Containers:\n", cyan("→"))
+	containers, err := mgr.GetContainerStatus()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  Failed to list containers: %v\n", err)
+		return
+	}
+
+	if len(containers) == 0 {
+		fmt.Printf("  No containers running\n")
+		return
+	}
+
+	fmt.Printf("  %-15s %-25s %-20s %s\n", "ID", "NAME", "SERVICE", "STATE")
+	for _, c := range containers {
+		stateColor := green
+		if strings.Contains(strings.ToLower(c.State), "exit") {
+			stateColor = red
+		} else if !strings.Contains(strings.ToLower(c.State), "running") {
+			stateColor = yellow
+		}
+
+		containerID := c.ID
+		if len(containerID) > 12 {
+			containerID = containerID[:12]
+		}
+
+		fmt.Printf("  %-15s %-25s %-20s %s\n",
+			containerID,
+			truncateName(c.Name, 25),
+			c.Service,
+			stateColor(c.State),
+		)
+	}
+}
+
+func showSwarmTasks(exec executor.Executor, stackName string, green, red, yellow, cyan func(a ...interface{}) string) {
+	swarmMgr := swarm.NewManager(exec, stackName)
+
 	fmt.Printf("\n%s Tasks:\n", cyan("→"))
-	tasks, err := mgr.GetStackTasks()
+	tasks, err := swarmMgr.GetStackTasks()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  Failed to list tasks: %v\n", err)
 		return
@@ -110,8 +160,13 @@ func runStatus(cmd *cobra.Command, args []string) {
 			errorMsg = red(task.Error)
 		}
 
+		taskID := task.ID
+		if len(taskID) > 12 {
+			taskID = taskID[:12]
+		}
+
 		fmt.Printf("  %-15s %-25s %-15s %s %s\n",
-			task.ID[:12],
+			taskID,
 			truncateName(task.Name, 25),
 			task.Node,
 			stateColor(task.CurrentState),
@@ -120,41 +175,92 @@ func runStatus(cmd *cobra.Command, args []string) {
 	}
 }
 
-func showServiceStatus(mgr *swarm.Manager, serviceName string, green, red, yellow, cyan func(a ...interface{}) string) {
+func showServiceStatus(cfg *config.Config, exec executor.Executor, mgr deployment.Manager, serviceName string, green, red, yellow, cyan func(a ...interface{}) string) {
 	fmt.Printf("%s Service: %s\n\n", cyan("→"), serviceName)
 
-	tasks, err := mgr.GetServiceTasks(serviceName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s Failed to get service tasks: %v\n", red("✗"), err)
-		os.Exit(1)
-	}
-
-	if len(tasks) == 0 {
-		fmt.Printf("  %s No tasks found for service %s\n", yellow("!"), serviceName)
-		return
-	}
-
-	fmt.Printf("  %-15s %-25s %-15s %-10s %s\n", "ID", "NAME", "NODE", "STATE", "ERROR")
-	for _, task := range tasks {
-		stateColor := green
-		if strings.Contains(strings.ToLower(task.CurrentState), "failed") {
-			stateColor = red
-		} else if !strings.Contains(strings.ToLower(task.CurrentState), "running") {
-			stateColor = yellow
+	if cfg.Mode == config.ModeCompose {
+		// Compose mode: show containers for this service
+		containers, err := mgr.GetContainerStatus()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s Failed to get containers: %v\n", red("✗"), err)
+			os.Exit(1)
 		}
 
-		errorMsg := ""
-		if task.Error != "" {
-			errorMsg = red(task.Error)
+		// Filter containers for this service
+		var serviceContainers []deployment.ContainerStatus
+		for _, c := range containers {
+			if c.Service == serviceName {
+				serviceContainers = append(serviceContainers, c)
+			}
 		}
 
-		fmt.Printf("  %-15s %-25s %-15s %s %s\n",
-			task.ID[:min(12, len(task.ID))],
-			truncateName(task.Name, 25),
-			task.Node,
-			stateColor(task.CurrentState),
-			errorMsg,
-		)
+		if len(serviceContainers) == 0 {
+			fmt.Printf("  %s No containers found for service %s\n", yellow("!"), serviceName)
+			return
+		}
+
+		fmt.Printf("  %-15s %-25s %-20s %s\n", "ID", "NAME", "SERVICE", "STATE")
+		for _, c := range serviceContainers {
+			stateColor := green
+			if strings.Contains(strings.ToLower(c.State), "exit") {
+				stateColor = red
+			} else if !strings.Contains(strings.ToLower(c.State), "running") {
+				stateColor = yellow
+			}
+
+			containerID := c.ID
+			if len(containerID) > 12 {
+				containerID = containerID[:12]
+			}
+
+			fmt.Printf("  %-15s %-25s %-20s %s\n",
+				containerID,
+				truncateName(c.Name, 25),
+				c.Service,
+				stateColor(c.State),
+			)
+		}
+	} else {
+		// Swarm mode: show tasks for this service
+		swarmMgr := swarm.NewManager(exec, cfg.Stack)
+		tasks, err := swarmMgr.GetServiceTasks(serviceName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s Failed to get service tasks: %v\n", red("✗"), err)
+			os.Exit(1)
+		}
+
+		if len(tasks) == 0 {
+			fmt.Printf("  %s No tasks found for service %s\n", yellow("!"), serviceName)
+			return
+		}
+
+		fmt.Printf("  %-15s %-25s %-15s %-10s %s\n", "ID", "NAME", "NODE", "STATE", "ERROR")
+		for _, task := range tasks {
+			stateColor := green
+			if strings.Contains(strings.ToLower(task.CurrentState), "failed") {
+				stateColor = red
+			} else if !strings.Contains(strings.ToLower(task.CurrentState), "running") {
+				stateColor = yellow
+			}
+
+			errorMsg := ""
+			if task.Error != "" {
+				errorMsg = red(task.Error)
+			}
+
+			taskID := task.ID
+			if len(taskID) > 12 {
+				taskID = taskID[:12]
+			}
+
+			fmt.Printf("  %-15s %-25s %-15s %s %s\n",
+				taskID,
+				truncateName(task.Name, 25),
+				task.Node,
+				stateColor(task.CurrentState),
+				errorMsg,
+			)
+		}
 	}
 }
 

@@ -6,8 +6,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
+	"github.com/marcelsud/swarmctl/internal/deployment"
 	"github.com/marcelsud/swarmctl/internal/executor"
-	"github.com/marcelsud/swarmctl/internal/swarm"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +51,8 @@ func runLogs(cmd *cobra.Command, args []string) {
 	}
 	defer exec.Close()
 
-	mgr := swarm.NewManager(exec, cfg.Stack)
+	// Create deployment manager
+	mgr := deployment.New(cfg, exec)
 
 	// If no service specified, list available services
 	if len(args) == 0 {
@@ -63,7 +64,7 @@ func runLogs(cmd *cobra.Command, args []string) {
 
 		fmt.Printf("%s Available services:\n", cyan("→"))
 		for _, svc := range services {
-			// Extract service name (remove stack prefix)
+			// Extract service name (remove stack/project prefix)
 			name := svc.Name
 			if len(cfg.Stack) > 0 && len(name) > len(cfg.Stack)+1 {
 				name = name[len(cfg.Stack)+1:]
@@ -79,7 +80,10 @@ func runLogs(cmd *cobra.Command, args []string) {
 	// For follow mode, stream logs interactively
 	if logsFollow {
 		fmt.Printf("%s Streaming logs for %s (Ctrl+C to stop)...\n\n", cyan("→"), serviceName)
-		runStreamLogs(exec, cfg.Stack, serviceName)
+		if err := mgr.StreamServiceLogs(serviceName, true, logsTail, os.Stdout, os.Stderr); err != nil {
+			// Ignore error on Ctrl+C
+			return
+		}
 		return
 	}
 
@@ -91,18 +95,4 @@ func runLogs(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Print(logs)
-}
-
-func runStreamLogs(exec executor.Executor, stackName, serviceName string) {
-	fullName := fmt.Sprintf("%s_%s", stackName, serviceName)
-	cmd := fmt.Sprintf("docker service logs %s --follow --tail %d", fullName, logsTail)
-	if logsSince != "" {
-		cmd += fmt.Sprintf(" --since %s", logsSince)
-	}
-
-	// Run interactively to stream output
-	if err := exec.RunStream(cmd, os.Stdout, os.Stderr); err != nil {
-		// Ignore error on Ctrl+C
-		return
-	}
 }

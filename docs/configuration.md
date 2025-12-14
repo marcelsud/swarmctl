@@ -15,8 +15,11 @@ Referência completa de configuração do swarmctl.
 Arquivo principal de configuração do swarmctl.
 
 ```yaml
-# Nome do stack no Docker Swarm
+# Nome do stack
 stack: myapp-production
+
+# Modo de deployment: swarm (default) ou compose
+mode: swarm
 
 # Conexão SSH ao manager node (opcional - omita para modo local)
 ssh:
@@ -51,13 +54,42 @@ compose_file: docker-compose.yaml
 
 ### stack (obrigatório)
 
-Nome do stack no Docker Swarm. Será usado como prefixo para todos os serviços e secrets.
+Nome do stack. Será usado como prefixo para todos os serviços e secrets.
 
 ```yaml
 stack: myapp-production
 ```
 
 Resultado: serviços serão `myapp-production_web`, `myapp-production_api`, etc.
+
+### mode (opcional)
+
+Modo de deployment. Determina se o swarmctl usa Docker Swarm ou Docker Compose.
+
+| Valor | Descrição |
+|-------|-----------|
+| `swarm` | Usa Docker Swarm (default) |
+| `compose` | Usa Docker Compose v2 |
+
+```yaml
+# Modo Swarm (default)
+mode: swarm
+
+# Modo Compose
+mode: compose
+```
+
+**Diferenças entre modos:**
+
+| Funcionalidade | Swarm | Compose |
+|----------------|-------|---------|
+| Rollback | Por serviço | Todos os serviços de uma vez |
+| Scale dinâmico | Sim | Não |
+| Overlay network | Sim | Não |
+| Secrets nativos | Sim | Não |
+| Multi-node | Sim | Não |
+
+Veja [Compose Mode](./compose-mode.md) para mais detalhes sobre o modo compose.
 
 ### ssh (opcional)
 

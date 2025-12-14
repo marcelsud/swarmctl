@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
@@ -13,13 +14,18 @@ import (
 
 var setupCmd = &cobra.Command{
 	Use:   "setup",
-	Short: "Setup the Swarm cluster",
-	Long: `Setup the Swarm cluster on the manager node.
-This command will:
-- Connect via SSH to the manager (or run locally if no SSH configured)
+	Short: "Setup the deployment environment",
+	Long: `Setup the deployment environment.
+
+For Swarm mode:
 - Verify Docker is installed
 - Initialize Swarm if necessary
 - Create overlay network for the stack
+- Login to the registry
+
+For Compose mode:
+- Verify Docker is installed
+- Verify docker compose plugin is available
 - Login to the registry`,
 	Run: runSetup,
 }
@@ -29,6 +35,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 	yellow := color.New(color.FgYellow).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 	cyan := color.New(color.FgCyan).SprintFunc()
+	bold := color.New(color.Bold).SprintFunc()
 
 	// Load config
 	fmt.Printf("%s Loading configuration...\n", cyan("→"))
@@ -45,6 +52,13 @@ func runSetup(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("  Stack: %s\n", cfg.Stack)
+
+	// Show deployment mode
+	modeStr := "swarm"
+	if cfg.Mode == config.ModeCompose {
+		modeStr = "compose"
+	}
+	fmt.Printf("  Mode:  %s\n", bold(modeStr))
 
 	// Create executor
 	exec, err := executor.New(cfg)
@@ -67,13 +81,48 @@ func runSetup(cmd *cobra.Command, args []string) {
 	fmt.Printf("%s Checking Docker installation...\n", cyan("→"))
 	installed, err := mgr.IsDockerInstalled()
 	if err != nil || !installed {
-		fmt.Fprintf(os.Stderr, "%s Docker is not installed on the remote host\n", red("✗"))
+		fmt.Fprintf(os.Stderr, "%s Docker is not installed\n", red("✗"))
 		os.Exit(1)
 	}
 
 	version, _ := mgr.GetDockerVersion()
 	fmt.Printf("  %s %s\n", green("✓"), version)
 
+	// Handle based on mode
+	if cfg.Mode == config.ModeCompose {
+		// Compose mode setup
+		runSetupCompose(exec, cfg, mgr, green, red, cyan)
+	} else {
+		// Swarm mode setup
+		runSetupSwarm(exec, cfg, mgr, green, yellow, red, cyan)
+	}
+
+	fmt.Printf("\n%s Setup complete! Run 'swarmctl deploy' to deploy your stack.\n", green("✓"))
+}
+
+func runSetupCompose(exec executor.Executor, cfg *config.Config, mgr *swarm.Manager, green, red, cyan func(a ...interface{}) string) {
+	// Check docker compose plugin
+	fmt.Printf("%s Checking docker compose plugin...\n", cyan("→"))
+	result, err := exec.Run("docker compose version")
+	if err != nil || result.ExitCode != 0 {
+		fmt.Fprintf(os.Stderr, "%s docker compose plugin not found\n", red("✗"))
+		fmt.Fprintf(os.Stderr, "  Install it with: apt install docker-compose-plugin\n")
+		os.Exit(1)
+	}
+	fmt.Printf("  %s %s\n", green("✓"), strings.TrimSpace(result.Stdout))
+
+	// Login to registry
+	if cfg.Registry.URL != "" && cfg.Registry.Username != "" {
+		fmt.Printf("%s Logging into registry %s...\n", cyan("→"), cfg.Registry.URL)
+		if err := mgr.RegistryLogin(cfg.Registry.URL, cfg.Registry.Username, cfg.Registry.Password); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Failed to login to registry: %v\n", red("✗"), err)
+			os.Exit(1)
+		}
+		fmt.Printf("  %s Logged in as %s\n", green("✓"), cfg.Registry.Username)
+	}
+}
+
+func runSetupSwarm(exec executor.Executor, cfg *config.Config, mgr *swarm.Manager, green, yellow, red, cyan func(a ...interface{}) string) {
 	// Check/Initialize Swarm
 	fmt.Printf("%s Checking Swarm status...\n", cyan("→"))
 	initialized, err := mgr.IsSwarmInitialized()
@@ -118,6 +167,4 @@ func runSetup(cmd *cobra.Command, args []string) {
 	if err == nil {
 		fmt.Println(nodeInfo)
 	}
-
-	fmt.Printf("\n%s Setup complete! Run 'swarmctl deploy' to deploy your stack.\n", green("✓"))
 }

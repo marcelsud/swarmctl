@@ -15,19 +15,25 @@ Referência completa de todos os comandos do swarmctl.
 
 ## swarmctl setup
 
-Configura o cluster Swarm no manager node.
+Configura o ambiente de deployment.
 
 ```bash
 swarmctl setup
 swarmctl setup -d production
 ```
 
-**Ações:**
-1. Conecta via SSH ao manager
+**Ações (Swarm mode):**
+1. Conecta via SSH ao manager (se configurado)
 2. Verifica se Docker está instalado
 3. Inicializa Swarm (`docker swarm init`) se necessário
 4. Cria network overlay para o stack
 5. Faz login no registry (se configurado)
+
+**Ações (Compose mode):**
+1. Conecta via SSH (se configurado)
+2. Verifica se Docker está instalado
+3. Verifica se docker compose plugin está disponível
+4. Faz login no registry (se configurado)
 
 **Output:**
 ```
@@ -54,7 +60,7 @@ manager      Ready     Active         Leader
 
 ## swarmctl deploy
 
-Faz deploy do stack no Swarm.
+Faz deploy do stack.
 
 ```bash
 swarmctl deploy
@@ -69,13 +75,22 @@ swarmctl deploy --skip-accessories   # Não atualiza accessories
     --skip-accessories   # Não atualiza serviços auxiliares
 ```
 
-**Ações:**
+**Ações (Swarm mode):**
 1. Carrega e valida configuração
-2. Conecta via SSH
+2. Conecta via SSH (se configurado)
 3. Login no registry
 4. Executa `docker stack deploy`
 5. Aguarda serviços iniciarem
 6. Mostra status final
+
+**Ações (Compose mode):**
+1. Carrega e valida configuração
+2. Conecta via SSH (se configurado)
+3. Login no registry
+4. Executa `docker compose up -d`
+5. Registra deploy no histórico (para rollback)
+6. Aguarda serviços iniciarem
+7. Mostra status final
 
 **Output:**
 ```
@@ -108,9 +123,9 @@ swarmctl status
 swarmctl status web    # Status detalhado do serviço web
 ```
 
-**Output:**
+**Output (Swarm mode):**
 ```
-→ Stack: myapp
+→ Stack: myapp (swarm mode)
 
 → Services:
   NAME                  MODE         REPLICAS        PORTS
@@ -122,6 +137,19 @@ swarmctl status web    # Status detalhado do serviço web
   abc123def456    myapp_web.1       node-1     Running 2 hours ago
   def456ghi789    myapp_web.2       node-2     Running 2 hours ago
   ghi789jkl012    myapp_web.3       node-1     Running 2 hours ago
+```
+
+**Output (Compose mode):**
+```
+→ Stack: myapp (compose mode)
+
+→ Services:
+  NAME                  MODE         REPLICAS        PORTS
+  myapp_web             replicated   1/1             0.0.0.0:80->3000/tcp
+
+→ Containers:
+  ID              NAME              SERVICE          STATE
+  f74a766bfdde    myapp-web-1       web              running
 ```
 
 ---
@@ -152,16 +180,22 @@ Volta serviços para a versão anterior.
 
 ```bash
 swarmctl rollback           # Rollback de todos os serviços
-swarmctl rollback web       # Rollback apenas do web
+swarmctl rollback web       # Rollback apenas do web (apenas swarm mode)
 ```
 
-**Ações:**
-- Executa `docker service update --rollback`
+**Swarm mode:**
+- Executa `docker service update --rollback` para cada serviço
+- Suporta rollback de serviços individuais
 - Mostra status após rollback
 
-**Output:**
+**Compose mode:**
+- Usa o histórico de deploys armazenado no container sidecar
+- Rollback sempre afeta todos os serviços de uma vez
+- Requer o container de histórico (`{stack}-history`)
+
+**Output (Swarm mode):**
 ```
-→ Connecting to manager.example.com...
+→ Stack: myapp (swarm mode)
 → Rolling back 3 service(s)...
   → web... ✓
   → worker... ✓
@@ -170,6 +204,17 @@ swarmctl rollback web       # Rollback apenas do web
 → Services after rollback:
   myapp_web                    3/3
   myapp_worker                 2/2
+
+✓ Rollback completed
+```
+
+**Output (Compose mode):**
+```
+→ Stack: myapp (compose mode)
+→ Rolling back to previous deploy...
+
+→ Services after rollback:
+  myapp_web                    1/1
 
 ✓ Rollback completed
 ```

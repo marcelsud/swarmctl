@@ -6,8 +6,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
+	"github.com/marcelsud/swarmctl/internal/deployment"
 	"github.com/marcelsud/swarmctl/internal/executor"
-	"github.com/marcelsud/swarmctl/internal/swarm"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +31,7 @@ func runRollback(cmd *cobra.Command, args []string) {
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 	cyan := color.New(color.FgCyan).SprintFunc()
+	bold := color.New(color.Bold).SprintFunc()
 
 	// Get service from args or flag
 	targetService := rollbackService
@@ -53,53 +54,77 @@ func runRollback(cmd *cobra.Command, args []string) {
 	}
 	defer exec.Close()
 
-	mgr := swarm.NewManager(exec, cfg.Stack)
+	// Create deployment manager
+	mgr := deployment.New(cfg, exec)
+
+	// Show mode info
+	modeStr := mgr.GetMode()
+	fmt.Printf("%s Stack: %s (%s mode)\n", cyan("→"), bold(cfg.Stack), modeStr)
 
 	// Check if stack exists
-	exists, err := mgr.StackExists()
+	exists, err := mgr.Exists()
 	if err != nil || !exists {
 		fmt.Fprintf(os.Stderr, "%s Stack %s not found\n", red("✗"), cfg.Stack)
 		os.Exit(1)
 	}
 
-	// Get services to rollback
-	var servicesToRollback []string
+	// Check if rollback is supported
+	if !mgr.SupportsRollback() {
+		fmt.Fprintf(os.Stderr, "%s Rollback is not supported in %s mode\n", red("✗"), modeStr)
+		os.Exit(1)
+	}
 
-	if targetService != "" {
-		servicesToRollback = []string{targetService}
-	} else {
-		// Get all services
-		services, err := mgr.ListServices()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s Failed to list services: %v\n", red("✗"), err)
+	// In compose mode, rollback is all-or-nothing (uses history)
+	if cfg.Mode == config.ModeCompose {
+		if targetService != "" {
+			fmt.Printf("%s In compose mode, rollback affects all services (individual service rollback not supported)\n", yellow("!"))
+		}
+
+		fmt.Printf("%s Rolling back to previous deploy...\n", cyan("→"))
+		if err := mgr.RollbackAll(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Failed to rollback: %v\n", red("✗"), err)
 			os.Exit(1)
 		}
+	} else {
+		// Swarm mode: can rollback individual services
+		var servicesToRollback []string
 
-		for _, svc := range services {
-			// Extract service name without stack prefix
-			name := svc.Name
-			if len(cfg.Stack) > 0 && len(name) > len(cfg.Stack)+1 {
-				name = name[len(cfg.Stack)+1:]
+		if targetService != "" {
+			servicesToRollback = []string{targetService}
+		} else {
+			// Get all services
+			services, err := mgr.ListServices()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s Failed to list services: %v\n", red("✗"), err)
+				os.Exit(1)
 			}
-			servicesToRollback = append(servicesToRollback, name)
+
+			for _, svc := range services {
+				// Extract service name without stack prefix
+				name := svc.Name
+				if len(cfg.Stack) > 0 && len(name) > len(cfg.Stack)+1 {
+					name = name[len(cfg.Stack)+1:]
+				}
+				servicesToRollback = append(servicesToRollback, name)
+			}
 		}
-	}
 
-	if len(servicesToRollback) == 0 {
-		fmt.Printf("%s No services to rollback\n", yellow("!"))
-		return
-	}
-
-	// Rollback each service
-	fmt.Printf("%s Rolling back %d service(s)...\n", cyan("→"), len(servicesToRollback))
-
-	for _, svc := range servicesToRollback {
-		fmt.Printf("  %s %s...", cyan("→"), svc)
-		if err := mgr.RollbackService(svc); err != nil {
-			fmt.Printf(" %s (%v)\n", red("✗"), err)
-			continue
+		if len(servicesToRollback) == 0 {
+			fmt.Printf("%s No services to rollback\n", yellow("!"))
+			return
 		}
-		fmt.Printf(" %s\n", green("✓"))
+
+		// Rollback each service
+		fmt.Printf("%s Rolling back %d service(s)...\n", cyan("→"), len(servicesToRollback))
+
+		for _, svc := range servicesToRollback {
+			fmt.Printf("  %s %s...", cyan("→"), svc)
+			if err := mgr.RollbackService(svc); err != nil {
+				fmt.Printf(" %s (%v)\n", red("✗"), err)
+				continue
+			}
+			fmt.Printf(" %s\n", green("✓"))
+		}
 	}
 
 	// Show status

@@ -2,13 +2,31 @@ package accessories
 
 import (
 	"testing"
+
+	"github.com/marcelsud/swarmctl/internal/config"
 )
 
 func TestNewManager(t *testing.T) {
-	m := NewManager(nil, "myapp")
+	m := NewManager(nil, "myapp", config.ModeSwarm)
 
 	if m.stackName != "myapp" {
 		t.Errorf("expected stackName 'myapp', got '%s'", m.stackName)
+	}
+
+	if m.mode != config.ModeSwarm {
+		t.Errorf("expected mode 'swarm', got '%s'", m.mode)
+	}
+}
+
+func TestNewManagerCompose(t *testing.T) {
+	m := NewManager(nil, "myapp", config.ModeCompose)
+
+	if m.stackName != "myapp" {
+		t.Errorf("expected stackName 'myapp', got '%s'", m.stackName)
+	}
+
+	if m.mode != config.ModeCompose {
+		t.Errorf("expected mode 'compose', got '%s'", m.mode)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
+	"github.com/marcelsud/swarmctl/internal/deployment"
 	"github.com/marcelsud/swarmctl/internal/executor"
 	"github.com/marcelsud/swarmctl/internal/swarm"
 	"github.com/spf13/cobra"
@@ -19,13 +20,13 @@ var (
 
 var deployCmd = &cobra.Command{
 	Use:   "deploy",
-	Short: "Deploy the stack to Swarm",
-	Long: `Deploy the stack to the Swarm cluster.
+	Short: "Deploy the stack",
+	Long: `Deploy the stack using Docker Swarm or docker compose.
 This command will:
 - Load and validate configuration
-- Connect via SSH
+- Connect via SSH (if configured)
 - Push secrets if changed
-- Run docker stack deploy
+- Deploy the stack (swarm mode or compose mode)
 - Wait for services to become healthy
 - Show final status`,
 	Run: runDeploy,
@@ -59,6 +60,13 @@ func runDeploy(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("  Stack: %s\n", bold(cfg.Stack))
 
+	// Show deployment mode
+	modeStr := "swarm"
+	if cfg.Mode == config.ModeCompose {
+		modeStr = "compose"
+	}
+	fmt.Printf("  Mode:  %s\n", bold(modeStr))
+
 	// Load compose file
 	fmt.Printf("%s Loading compose file...\n", cyan("→"))
 	composeContent, err := config.LoadComposeFile(cfg.ComposeFile)
@@ -82,12 +90,14 @@ func runDeploy(cmd *cobra.Command, args []string) {
 		fmt.Printf("%s Connected to %s\n", green("✓"), cfg.SSH.Host)
 	}
 
-	mgr := swarm.NewManager(exec, cfg.Stack)
+	// Create deployment manager
+	mgr := deployment.New(cfg, exec)
 
-	// Login to registry if configured
+	// Login to registry if configured (use swarm manager for registry login)
 	if cfg.Registry.URL != "" && cfg.Registry.Username != "" {
 		fmt.Printf("%s Logging into registry...\n", cyan("→"))
-		if err := mgr.RegistryLogin(cfg.Registry.URL, cfg.Registry.Username, cfg.Registry.Password); err != nil {
+		swarmMgr := swarm.NewManager(exec, cfg.Stack)
+		if err := swarmMgr.RegistryLogin(cfg.Registry.URL, cfg.Registry.Username, cfg.Registry.Password); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Failed to login: %v\n", red("✗"), err)
 			os.Exit(1)
 		}
@@ -96,7 +106,7 @@ func runDeploy(cmd *cobra.Command, args []string) {
 
 	// Deploy stack
 	fmt.Printf("%s Deploying stack %s...\n", cyan("→"), bold(cfg.Stack))
-	if err := mgr.DeployStack(composeContent); err != nil {
+	if err := mgr.Deploy(composeContent); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to deploy: %v\n", red("✗"), err)
 		os.Exit(1)
 	}

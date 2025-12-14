@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -20,6 +21,9 @@ func Load(path string) (*Config, error) {
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
+
+	// Normalize mode to lowercase
+	cfg.Mode = DeploymentMode(strings.ToLower(string(cfg.Mode)))
 
 	// Expand ~ in key path
 	if cfg.SSH.Key != "" {

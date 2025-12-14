@@ -1,13 +1,24 @@
 package config
 
+// DeploymentMode represents the deployment mode (swarm or compose)
+type DeploymentMode string
+
+const (
+	// ModeSwarm uses Docker Swarm for deployment
+	ModeSwarm DeploymentMode = "swarm"
+	// ModeCompose uses docker compose for deployment
+	ModeCompose DeploymentMode = "compose"
+)
+
 // Config represents the swarm.yaml configuration
 type Config struct {
-	Stack       string      `yaml:"stack"`
-	SSH         SSHConfig   `yaml:"ssh"`
-	Registry    Registry    `yaml:"registry"`
-	Secrets     []string    `yaml:"secrets"`
-	Accessories []string    `yaml:"accessories"`
-	ComposeFile string      `yaml:"compose_file"`
+	Stack       string         `yaml:"stack"`
+	Mode        DeploymentMode `yaml:"mode"`
+	SSH         SSHConfig      `yaml:"ssh"`
+	Registry    Registry       `yaml:"registry"`
+	Secrets     []string       `yaml:"secrets"`
+	Accessories []string       `yaml:"accessories"`
+	ComposeFile string         `yaml:"compose_file"`
 }
 
 // SSHConfig holds SSH connection settings
@@ -28,6 +39,7 @@ type Registry struct {
 // NewConfig returns a Config with default values
 func NewConfig() *Config {
 	return &Config{
+		Mode: ModeSwarm,
 		SSH: SSHConfig{
 			Port: 22,
 		},

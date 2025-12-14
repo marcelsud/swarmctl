@@ -21,6 +21,7 @@ var Topics = []Topic{
 	{Name: "getting-started", File: "getting-started.md", Description: "Installation and first deploy"},
 	{Name: "commands", File: "commands.md", Description: "Command reference"},
 	{Name: "configuration", File: "configuration.md", Description: "swarm.yaml configuration"},
+	{Name: "compose-mode", File: "compose-mode.md", Description: "Deploy with Docker Compose"},
 	{Name: "local-mode", File: "local-mode.md", Description: "Run locally without SSH"},
 	{Name: "multi-environment", File: "multi-environment.md", Description: "Staging/Production setup"},
 }

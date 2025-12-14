@@ -7,8 +7,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/marcelsud/swarmctl/internal/config"
+	"github.com/marcelsud/swarmctl/internal/deployment"
 	"github.com/marcelsud/swarmctl/internal/executor"
-	"github.com/marcelsud/swarmctl/internal/swarm"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +51,8 @@ func runExec(cmd *cobra.Command, args []string) {
 	}
 	defer exec.Close()
 
-	mgr := swarm.NewManager(exec, cfg.Stack)
+	// Create deployment manager
+	mgr := deployment.New(cfg, exec)
 
 	// Find a running container for this service
 	fmt.Printf("%s Finding container for service %s...\n", cyan("→"), serviceName)

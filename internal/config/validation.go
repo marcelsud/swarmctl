@@ -32,6 +32,11 @@ func (c *Config) Validate() error {
 		ve.Add("stack name is required")
 	}
 
+	// Validate mode
+	if c.Mode != "" && c.Mode != ModeSwarm && c.Mode != ModeCompose {
+		ve.Add(fmt.Sprintf("invalid mode '%s': must be 'swarm' or 'compose'", c.Mode))
+	}
+
 	// SSH is optional - if host is provided, user is required
 	if c.SSH.Host != "" {
 		if c.SSH.User == "" {
