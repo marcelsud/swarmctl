@@ -83,9 +83,35 @@ swarmctl/
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `swarm.yaml` | Configuração principal (SSH, registry, secrets, accessories) |
+| `swarm.yaml` | Configuração principal (SSH, registry, secrets, accessories, nodes) |
 | `docker-compose.yaml` | Definição dos serviços (formato padrão Docker) |
 | `.env` | Valores dos secrets (não commitar) |
+
+## Exec em Worker Nodes
+
+O `swarmctl exec` detecta automaticamente se o container está em um worker node e faz SSH hop pelo manager:
+
+```
+swarmctl → SSH manager → SSH worker (IP interno) → docker exec
+```
+
+**Configuração de nodes no swarm.yaml:**
+```yaml
+ssh:
+  host: vps-loki
+  user: deploy
+
+nodes:
+  vps-helios:
+    user: root
+  vps-athena:
+    user: deploy
+```
+
+**Requisitos:**
+- ssh-agent rodando com a chave carregada (`ssh-add`)
+- Workers acessíveis via IP interno a partir do manager
+- SSH habilitado nos workers
 
 ## Build e Testes
 

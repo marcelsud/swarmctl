@@ -46,6 +46,13 @@ accessories:
   - postgres
   - elasticsearch
 
+# Configuração SSH por node (para exec em workers)
+nodes:
+  vps-helios:
+    user: root
+  vps-athena:
+    user: deploy
+
 # Caminho para o docker-compose.yaml
 compose_file: docker-compose.yaml
 ```
@@ -186,6 +193,36 @@ accessories:
 - Parar banco de dados para manutenção
 - Reiniciar cache
 - Debugging
+
+### nodes (opcional)
+
+Configuração SSH por node do Swarm. Usado pelo `swarmctl exec` para conectar a containers em worker nodes.
+
+```yaml
+nodes:
+  vps-helios:
+    user: root
+  vps-athena:
+    user: deploy
+```
+
+| Campo | Descrição |
+|-------|-----------|
+| user | Usuário SSH para este node |
+
+**Como funciona:**
+
+Quando o container está em um worker node, o swarmctl faz SSH hop:
+```
+swarmctl → SSH manager → SSH worker (IP interno) → docker exec
+```
+
+**Requisitos:**
+- ssh-agent rodando com chave carregada (`ssh-add`)
+- Workers acessíveis via IP interno a partir do manager
+- SSH habilitado nos workers
+
+**Fallback:** Se um node não estiver configurado, usa o `ssh.user` do manager.
 
 ### compose_file (opcional)
 

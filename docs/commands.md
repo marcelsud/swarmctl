@@ -232,17 +232,46 @@ swarmctl exec web -- ls -la        # Comando específico
 swarmctl exec api -- rails console # Rails console
 ```
 
-**Output:**
+**Output (container no manager):**
 ```
 → Finding container for service web...
 → Executing: ls -la
 
 total 64
 drwxr-xr-x 1 root root 4096 Dec 12 10:00 .
-drwxr-xr-x 1 root root 4096 Dec 12 10:00 ..
--rw-r--r-- 1 root root  220 Dec 12 10:00 Gemfile
 ...
 ```
+
+**Output (container em worker node):**
+```
+→ Finding container for service pocketbase...
+⚡ Container is on node vps-helios (IP: 10.0.0.2)
+→ SSH hop to root@10.0.0.2
+→ Executing: sh
+
+/ #
+```
+
+### Exec em Worker Nodes
+
+Em modo Swarm, o `exec` detecta automaticamente se o container está em um worker node e faz SSH hop transparente através do manager.
+
+**Requisitos:**
+- ssh-agent rodando com chave carregada (`ssh-add`)
+- Workers acessíveis via IP interno a partir do manager
+- SSH habilitado nos workers
+
+**Configuração de user SSH por node (opcional):**
+```yaml
+# swarm.yaml
+nodes:
+  vps-helios:
+    user: root
+  vps-athena:
+    user: deploy
+```
+
+Se um node não estiver configurado, usa o `ssh.user` do manager como fallback.
 
 ---
 
