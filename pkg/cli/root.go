@@ -48,6 +48,7 @@ func init() {
 	rootCmd.AddCommand(accessoryCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(docsCmd)
+	rootCmd.AddCommand(initLLMCmd)
 }
 
 func Execute() error {
