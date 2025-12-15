@@ -158,6 +158,65 @@ func (m *Manager) FindRunningContainer(serviceName string) (string, error) {
 	return containerID[:12], nil
 }
 
+// ContainerInfo holds information about a running container including its node
+type ContainerInfo struct {
+	ContainerID string
+	NodeName    string
+	NodeIP      string
+}
+
+// FindRunningContainerWithNode finds a running container and its node information
+func (m *Manager) FindRunningContainerWithNode(serviceName string) (*ContainerInfo, error) {
+	fullName := fmt.Sprintf("%s_%s", m.stackName, serviceName)
+
+	// Get running task ID and node name
+	cmd := fmt.Sprintf("docker service ps %s --filter 'desired-state=running' --format '{{.ID}}\\t{{.Node}}' | head -1", fullName)
+	result, err := m.exec.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find tasks: %w", err)
+	}
+
+	output := strings.TrimSpace(result.Stdout)
+	if output == "" {
+		return nil, fmt.Errorf("no running tasks found for service %s", serviceName)
+	}
+
+	parts := strings.Split(output, "\t")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("failed to parse task info for service %s", serviceName)
+	}
+
+	taskID := parts[0]
+	nodeName := parts[1]
+
+	// Get container ID from task
+	cmd = fmt.Sprintf("docker inspect --format '{{.Status.ContainerStatus.ContainerID}}' %s", taskID)
+	result, err = m.exec.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get container ID: %w", err)
+	}
+
+	containerID := strings.TrimSpace(result.Stdout)
+	if containerID == "" {
+		return nil, fmt.Errorf("container not found for task %s", taskID)
+	}
+
+	// Get node IP address
+	cmd = fmt.Sprintf("docker node inspect %s --format '{{.Status.Addr}}'", nodeName)
+	result, err = m.exec.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get node IP: %w", err)
+	}
+
+	nodeIP := strings.TrimSpace(result.Stdout)
+
+	return &ContainerInfo{
+		ContainerID: containerID[:12],
+		NodeName:    nodeName,
+		NodeIP:      nodeIP,
+	}, nil
+}
+
 func getOrEmpty(slice []string, index int) string {
 	if index < len(slice) {
 		return slice[index]

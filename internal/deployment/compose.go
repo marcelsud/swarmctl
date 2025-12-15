@@ -204,6 +204,26 @@ func (m *ComposeManager) FindRunningContainer(serviceName string) (string, error
 	return lines[0], nil
 }
 
+// FindRunningContainerWithNode finds a running container - compose is always local
+func (m *ComposeManager) FindRunningContainerWithNode(serviceName string) (*ContainerInfo, error) {
+	containerID, err := m.FindRunningContainer(serviceName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Compose runs on a single host, return empty node info
+	return &ContainerInfo{
+		ContainerID: containerID,
+		NodeName:    "",
+		NodeIP:      "",
+	}, nil
+}
+
+// GetCurrentNodeHostname returns empty for compose (single-node)
+func (m *ComposeManager) GetCurrentNodeHostname() (string, error) {
+	return "", nil
+}
+
 // GetContainerStatus gets container status for all services
 func (m *ComposeManager) GetContainerStatus() ([]ContainerStatus, error) {
 	cmd := fmt.Sprintf("docker compose -p %s ps --format json", m.projectName)

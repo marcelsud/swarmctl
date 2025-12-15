@@ -178,6 +178,73 @@ func (m *SwarmManager) FindRunningContainer(serviceName string) (string, error) 
 	return containerID[:12], nil
 }
 
+// FindRunningContainerWithNode finds a running container and its node information
+func (m *SwarmManager) FindRunningContainerWithNode(serviceName string) (*ContainerInfo, error) {
+	fullName := fmt.Sprintf("%s_%s", m.stackName, serviceName)
+
+	// Get running task ID and node name
+	cmd := fmt.Sprintf("docker service ps %s --filter 'desired-state=running' --format '{{.ID}}\\t{{.Node}}' | head -1", fullName)
+	result, err := m.exec.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find tasks: %w", err)
+	}
+
+	output := strings.TrimSpace(result.Stdout)
+	if output == "" {
+		return nil, fmt.Errorf("no running tasks found for service %s", serviceName)
+	}
+
+	parts := strings.Split(output, "\t")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("failed to parse task info for service %s", serviceName)
+	}
+
+	taskID := parts[0]
+	nodeName := parts[1]
+
+	// Get container ID from task
+	cmd = fmt.Sprintf("docker inspect --format '{{.Status.ContainerStatus.ContainerID}}' %s", taskID)
+	result, err = m.exec.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get container ID: %w", err)
+	}
+
+	containerID := strings.TrimSpace(result.Stdout)
+	if containerID == "" {
+		return nil, fmt.Errorf("container not found for task %s", taskID)
+	}
+
+	// Get node IP address
+	cmd = fmt.Sprintf("docker node inspect %s --format '{{.Status.Addr}}'", nodeName)
+	result, err = m.exec.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get node IP: %w", err)
+	}
+
+	nodeIP := strings.TrimSpace(result.Stdout)
+
+	return &ContainerInfo{
+		ContainerID: containerID[:12],
+		NodeName:    nodeName,
+		NodeIP:      nodeIP,
+	}, nil
+}
+
+// GetCurrentNodeHostname returns the hostname of the current node
+func (m *SwarmManager) GetCurrentNodeHostname() (string, error) {
+	result, err := m.exec.Run("docker node inspect self --format '{{.Description.Hostname}}'")
+	if err != nil {
+		return "", fmt.Errorf("failed to get current node hostname: %w", err)
+	}
+
+	hostname := strings.TrimSpace(result.Stdout)
+	if hostname == "" {
+		return "", fmt.Errorf("empty hostname returned")
+	}
+
+	return hostname, nil
+}
+
 // GetContainerStatus gets container/task status for all services
 func (m *SwarmManager) GetContainerStatus() ([]ContainerStatus, error) {
 	cmd := fmt.Sprintf("docker stack ps %s --format '{{.ID}}|{{.Name}}|{{.CurrentState}}|{{.Error}}'", m.stackName)

@@ -23,6 +23,13 @@ type ContainerStatus struct {
 	Error   string
 }
 
+// ContainerInfo holds information about a running container including its node
+type ContainerInfo struct {
+	ContainerID string
+	NodeName    string
+	NodeIP      string
+}
+
 // Manager defines the interface for deployment operations
 type Manager interface {
 	// Deploy deploys the stack/project
@@ -45,6 +52,12 @@ type Manager interface {
 
 	// FindRunningContainer finds a container ID for exec
 	FindRunningContainer(serviceName string) (string, error)
+
+	// FindRunningContainerWithNode finds a container ID and its node information
+	FindRunningContainerWithNode(serviceName string) (*ContainerInfo, error)
+
+	// GetCurrentNodeHostname returns the hostname of the current node
+	GetCurrentNodeHostname() (string, error)
 
 	// GetContainerStatus gets container/task status for all services
 	GetContainerStatus() ([]ContainerStatus, error)

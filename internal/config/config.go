@@ -12,13 +12,19 @@ const (
 
 // Config represents the swarm.yaml configuration
 type Config struct {
-	Stack       string         `yaml:"stack"`
-	Mode        DeploymentMode `yaml:"mode"`
-	SSH         SSHConfig      `yaml:"ssh"`
-	Registry    Registry       `yaml:"registry"`
-	Secrets     []string       `yaml:"secrets"`
-	Accessories []string       `yaml:"accessories"`
-	ComposeFile string         `yaml:"compose_file"`
+	Stack       string                `yaml:"stack"`
+	Mode        DeploymentMode        `yaml:"mode"`
+	SSH         SSHConfig             `yaml:"ssh"`
+	Registry    Registry              `yaml:"registry"`
+	Secrets     []string              `yaml:"secrets"`
+	Accessories []string              `yaml:"accessories"`
+	ComposeFile string                `yaml:"compose_file"`
+	Nodes       map[string]NodeConfig `yaml:"nodes"`
+}
+
+// NodeConfig holds SSH settings for a specific node
+type NodeConfig struct {
+	User string `yaml:"user"`
 }
 
 // SSHConfig holds SSH connection settings

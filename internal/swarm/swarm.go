@@ -109,3 +109,18 @@ func (m *Manager) RegistryLogin(url, username, password string) error {
 
 	return nil
 }
+
+// GetCurrentNodeHostname returns the hostname of the current node
+func (m *Manager) GetCurrentNodeHostname() (string, error) {
+	result, err := m.exec.Run("docker node inspect self --format '{{.Description.Hostname}}'")
+	if err != nil {
+		return "", fmt.Errorf("failed to get current node hostname: %w", err)
+	}
+
+	hostname := strings.TrimSpace(result.Stdout)
+	if hostname == "" {
+		return "", fmt.Errorf("empty hostname returned")
+	}
+
+	return hostname, nil
+}

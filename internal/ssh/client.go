@@ -18,8 +18,9 @@ type Client struct {
 	User    string
 	KeyPath string
 
-	conn   *ssh.Client
-	config *ssh.ClientConfig
+	conn      *ssh.Client
+	config    *ssh.ClientConfig
+	agentConn net.Conn
 }
 
 // NewClient creates a new SSH client
@@ -58,10 +59,26 @@ func (c *Client) Connect() error {
 
 // Close closes the SSH connection
 func (c *Client) Close() error {
+	if c.agentConn != nil {
+		c.agentConn.Close()
+	}
 	if c.conn != nil {
 		return c.conn.Close()
 	}
 	return nil
+}
+
+// HasAgentForwarding returns true if SSH agent is available for forwarding
+func (c *Client) HasAgentForwarding() bool {
+	return c.agentConn != nil
+}
+
+// GetAgentClient returns the SSH agent client for forwarding
+func (c *Client) GetAgentClient() agent.Agent {
+	if c.agentConn == nil {
+		return nil
+	}
+	return agent.NewClient(c.agentConn)
 }
 
 // getAuthMethods returns available authentication methods
@@ -115,6 +132,9 @@ func (c *Client) getAgentAuth() ssh.AuthMethod {
 	if err != nil {
 		return nil
 	}
+
+	// Store connection for agent forwarding
+	c.agentConn = conn
 
 	agentClient := agent.NewClient(conn)
 	return ssh.PublicKeysCallback(agentClient.Signers)

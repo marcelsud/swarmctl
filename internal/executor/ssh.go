@@ -42,6 +42,16 @@ func (e *SSHExecutor) RunInteractive(cmd string) error {
 	return e.client.RunInteractive(cmd)
 }
 
+// RunInteractiveOnHost runs a command on a remote host through SSH hop
+func (e *SSHExecutor) RunInteractiveOnHost(host, user, cmd string) error {
+	return e.client.RunInteractiveViaHost(host, user, cmd)
+}
+
+// HasAgentForwarding returns true if SSH agent forwarding is available
+func (e *SSHExecutor) HasAgentForwarding() bool {
+	return e.client.HasAgentForwarding()
+}
+
 // RunStream runs a command and streams output to the provided writers
 func (e *SSHExecutor) RunStream(cmd string, stdout, stderr io.Writer) error {
 	return e.client.RunStream(cmd, stdout, stderr)

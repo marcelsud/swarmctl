@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 // CommandResult holds the result of a command execution
@@ -79,6 +80,49 @@ func (c *Client) RunInteractive(cmd string) error {
 	}
 
 	return session.Run(cmd)
+}
+
+// RunInteractiveViaHost runs a command on a remote host through SSH hop with agent forwarding
+func (c *Client) RunInteractiveViaHost(targetHost, targetUser, cmd string) error {
+	if c.conn == nil {
+		return fmt.Errorf("not connected")
+	}
+
+	session, err := c.conn.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %w", err)
+	}
+	defer session.Close()
+
+	// Enable SSH agent forwarding if available
+	if c.agentConn != nil {
+		if err := agent.RequestAgentForwarding(session); err != nil {
+			return fmt.Errorf("failed to request agent forwarding: %w", err)
+		}
+		if err := agent.ForwardToAgent(c.conn, c.GetAgentClient()); err != nil {
+			return fmt.Errorf("failed to forward agent: %w", err)
+		}
+	}
+
+	session.Stdin = os.Stdin
+	session.Stdout = os.Stdout
+	session.Stderr = os.Stderr
+
+	// Request pseudo-terminal
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.TTY_OP_ISPEED: 14400,
+		ssh.TTY_OP_OSPEED: 14400,
+	}
+
+	if err := session.RequestPty("xterm", 80, 40, modes); err != nil {
+		return fmt.Errorf("failed to request pty: %w", err)
+	}
+
+	// Build SSH hop command
+	sshCmd := fmt.Sprintf("ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s@%s %q", targetUser, targetHost, cmd)
+
+	return session.Run(sshCmd)
 }
 
 // RunStream runs a command and streams output to the provided writers
