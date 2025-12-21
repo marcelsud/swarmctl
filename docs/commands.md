@@ -11,6 +11,21 @@ Referência completa de todos os comandos do swarmctl.
     --version              # Versão do swarmctl
 ```
 
+### --verbose
+
+O modo verbose (`-v` ou `--verbose`) mostra informações adicionais durante a execução:
+
+- Comandos Docker sendo executados
+- Output completo dos comandos (não truncado)
+- Detalhes de conexão SSH
+- Tempo de execução de cada operação
+
+```bash
+swarmctl deploy -v
+swarmctl status -v
+swarmctl setup --verbose
+```
+
 ---
 
 ## swarmctl setup
@@ -368,4 +383,41 @@ Reinicia um accessory (force update).
 ```bash
 swarmctl accessory restart redis
 swarmctl accessory restart all
+```
+
+---
+
+## swarmctl docs
+
+Mostra documentação embutida do swarmctl.
+
+```bash
+swarmctl docs              # Lista tópicos disponíveis
+swarmctl docs commands     # Mostra documentação de comandos
+swarmctl docs configuration # Mostra referência de configuração
+```
+
+**Tópicos disponíveis:**
+
+| Tópico | Descrição |
+|--------|-----------|
+| `getting-started` | Installation and first deploy |
+| `commands` | Command reference |
+| `configuration` | swarm.yaml configuration |
+| `compose-mode` | Deploy with Docker Compose |
+| `local-mode` | Run locally without SSH |
+| `multi-environment` | Staging/Production setup |
+
+**Output (listando tópicos):**
+```
+→ Available documentation topics:
+
+  getting-started    Installation and first deploy
+  commands           Command reference
+  configuration      swarm.yaml configuration
+  compose-mode       Deploy with Docker Compose
+  local-mode         Run locally without SSH
+  multi-environment  Staging/Production setup
+
+Usage: swarmctl docs <topic>
 ```

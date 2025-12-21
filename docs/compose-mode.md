@@ -1,103 +1,103 @@
-# Compose Mode
+# Modo Compose
 
-swarmctl supports Docker Compose as an alternative to Docker Swarm for deployments. This is useful when:
+O swarmctl suporta Docker Compose como alternativa ao Docker Swarm para deployments. Útil quando:
 
-- Docker Swarm is not available or not desired
-- You want simpler single-node deployments
-- You're developing locally before deploying to Swarm
+- Docker Swarm não está disponível ou não é desejado
+- Você quer deployments mais simples em um único node
+- Você está desenvolvendo localmente antes de fazer deploy para Swarm
 
-## Configuration
+## Configuração
 
-Enable compose mode by setting `mode: compose` in your swarm.yaml:
+Ative o modo compose definindo `mode: compose` no seu swarm.yaml:
 
 ```yaml
 stack: myapp
 mode: compose
 compose_file: docker-compose.yaml
 
-# SSH is optional - omit for local deployment
+# SSH é opcional - omita para deploy local
 ssh:
   host: server.example.com
   user: deploy
 ```
 
-## How It Works
+## Como Funciona
 
-In compose mode, swarmctl uses `docker compose` (v2 plugin) instead of Docker Swarm:
+No modo compose, o swarmctl usa `docker compose` (plugin v2) ao invés do Docker Swarm:
 
-| Operation | Swarm Mode | Compose Mode |
-|-----------|------------|--------------|
+| Operação | Modo Swarm | Modo Compose |
+|----------|------------|--------------|
 | Deploy | `docker stack deploy` | `docker compose up -d` |
 | Remove | `docker stack rm` | `docker compose down` |
 | Status | `docker service ls` | `docker compose ps` |
 | Logs | `docker service logs` | `docker compose logs` |
-| Exec | Find task container | Find compose container |
+| Exec | Encontra container da task | Encontra container do compose |
 
-## Commands
+## Comandos
 
-All swarmctl commands work in compose mode:
+Todos os comandos do swarmctl funcionam no modo compose:
 
 ```bash
-swarmctl setup      # Verifies Docker and compose plugin
-swarmctl deploy     # Deploys with docker compose
-swarmctl status     # Shows containers instead of tasks
-swarmctl logs       # Uses docker compose logs
-swarmctl exec       # Executes in compose container
-swarmctl rollback   # Rolls back via history (see below)
+swarmctl setup      # Verifica Docker e plugin compose
+swarmctl deploy     # Faz deploy com docker compose
+swarmctl status     # Mostra containers ao invés de tasks
+swarmctl logs       # Usa docker compose logs
+swarmctl exec       # Executa no container do compose
+swarmctl rollback   # Rollback via histórico (veja abaixo)
 ```
 
-## Rollback Support
+## Suporte a Rollback
 
-Compose mode supports rollback through a history sidecar container that stores previous deployments.
+O modo compose suporta rollback através de um container sidecar de histórico que armazena deployments anteriores.
 
-### How Rollback Works
+### Como o Rollback Funciona
 
-1. On each deploy, the compose file and image metadata are recorded
-2. The history is stored in a SQLite database inside a container
-3. Rollback retrieves the previous compose file and redeploys
+1. A cada deploy, o arquivo compose e metadados das imagens são registrados
+2. O histórico é armazenado em um banco SQLite dentro de um container
+3. O rollback recupera o arquivo compose anterior e faz redeploy
 
-### History Container
+### Container de Histórico
 
-The history container (`{stack}-history`) is automatically started during deploy. It uses the image `docker.io/marcelsud/swarmctl-history`.
+O container de histórico (`{stack}-history`) é iniciado automaticamente durante o deploy. Ele usa a imagem `docker.io/marcelsud/swarmctl-history`.
 
-If the history container is not available, rollback will show a warning but deploy will continue.
+Se o container de histórico não estiver disponível, o rollback mostrará um aviso, mas o deploy continuará.
 
 ```bash
-# Rollback to previous version
+# Rollback para versão anterior
 swarmctl rollback
 ```
 
-**Note:** In compose mode, rollback affects all services at once (individual service rollback is not supported).
+**Nota:** No modo compose, o rollback afeta todos os serviços de uma vez (rollback de serviço individual não é suportado).
 
-## Limitations
+## Limitações
 
-### No Dynamic Scaling
+### Sem Scale Dinâmico
 
-Compose mode does not support the `scale` operation:
+O modo compose não suporta a operação `scale`:
 
 ```bash
-swarmctl scale web=3  # Error: scale not supported in compose mode
+swarmctl scale web=3  # Erro: scale não suportado no modo compose
 ```
 
-To scale in compose mode, update your docker-compose.yaml with `deploy.replicas` and redeploy.
+Para escalar no modo compose, atualize seu docker-compose.yaml com `deploy.replicas` e faça redeploy.
 
-### All-or-Nothing Rollback
+### Rollback Tudo-ou-Nada
 
-Unlike Swarm mode where individual services can be rolled back, compose mode rolls back the entire deployment at once.
+Diferente do modo Swarm onde serviços individuais podem sofrer rollback, o modo compose faz rollback de todo o deployment de uma vez.
 
-## Setup Requirements
+## Requisitos do Setup
 
-The `swarmctl setup` command in compose mode verifies:
+O comando `swarmctl setup` no modo compose verifica:
 
-1. Docker is installed
-2. Docker Compose v2 plugin is available (`docker compose version`)
-3. Registry login (if configured)
+1. Docker está instalado
+2. Plugin Docker Compose v2 está disponível (`docker compose version`)
+3. Login no registry (se configurado)
 
-It does **not** initialize Swarm or create overlay networks.
+Ele **não** inicializa Swarm ou cria overlay networks.
 
-## Example
+## Exemplos
 
-### Local Development
+### Desenvolvimento Local
 
 ```yaml
 # swarm.yaml
@@ -107,13 +107,13 @@ compose_file: docker-compose.yaml
 ```
 
 ```bash
-swarmctl setup   # Verify docker compose
-swarmctl deploy  # Deploy locally
-swarmctl status  # Check status
-swarmctl logs web -f  # Follow logs
+swarmctl setup   # Verifica docker compose
+swarmctl deploy  # Deploy local
+swarmctl status  # Verificar status
+swarmctl logs web -f  # Acompanhar logs
 ```
 
-### Remote Deployment
+### Deploy Remoto
 
 ```yaml
 # swarm.yaml
@@ -128,24 +128,24 @@ ssh:
 ```
 
 ```bash
-swarmctl setup   # Verify remote docker compose
-swarmctl deploy  # Deploy to remote server
-swarmctl status  # Check remote status
+swarmctl setup   # Verifica docker compose remoto
+swarmctl deploy  # Deploy no servidor remoto
+swarmctl status  # Verificar status remoto
 ```
 
-## Switching Between Modes
+## Alternando Entre Modos
 
-You can switch between swarm and compose modes by changing the `mode` field:
+Você pode alternar entre os modos swarm e compose mudando o campo `mode`:
 
 ```yaml
-# swarm.yaml for compose
+# swarm.yaml para compose
 mode: compose
 ```
 
 ```yaml
-# swarm.yaml for swarm (default)
+# swarm.yaml para swarm (default)
 mode: swarm
-# or simply omit the mode field
+# ou simplesmente omita o campo mode
 ```
 
-**Note:** Switching modes requires removing the existing deployment first, as Swarm stacks and Compose projects are managed separately.
+**Nota:** Alternar entre modos requer remover o deployment existente primeiro, já que stacks Swarm e projetos Compose são gerenciados separadamente.

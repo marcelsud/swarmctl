@@ -15,7 +15,7 @@ CLI para deploy e gerenciamento de stacks Docker Swarm via SSH, inspirada no [Ka
 
 ## Requisitos
 
-- Go 1.22+ (para build)
+- Go 1.24+ (para build)
 - Docker Swarm configurado no servidor de destino
 - Acesso SSH ao manager node
 
@@ -104,6 +104,7 @@ swarmctl deploy   # Faz deploy do stack
 | `swarmctl accessory start <name>` | Inicia accessory |
 | `swarmctl accessory stop <name>` | Para accessory |
 | `swarmctl accessory restart <name>` | Reinicia accessory |
+| `swarmctl docs [topic]` | Mostra documentação embutida |
 
 ## Multi-ambiente
 
@@ -133,6 +134,8 @@ myapp/
 - [Getting Started](docs/getting-started.md) - Instalação e primeiro deploy
 - [Configuração](docs/configuration.md) - Referência completa do swarm.yaml
 - [Comandos](docs/commands.md) - Documentação de todos os comandos
+- [Modo Compose](docs/compose-mode.md) - Deploy com Docker Compose ao invés de Swarm
+- [Modo Local](docs/local-mode.md) - Executar localmente sem SSH
 - [Multi-ambiente](docs/multi-environment.md) - Configuração de staging/production
 
 ## Desenvolvimento
@@ -163,8 +166,7 @@ swarmctl/
 │   ├── ssh/                # Cliente SSH
 │   └── swarm/              # Operações Docker Swarm
 ├── pkg/cli/                # Comandos CLI (Cobra)
-├── docs/                   # Documentação
-└── e2e-test/               # Arquivos de teste E2E
+└── docs/                   # Documentação
 ```
 
 ## Configuração SSH

@@ -15,7 +15,7 @@ O swarmctl pode rodar em dois modos: **local** ou **remoto (SSH)**.
 ### Modo Remoto (SSH)
 
 **Na sua máquina local:**
-- Go 1.22+ (para build)
+- Go 1.24+ (para build)
 - SSH client configurado
 - Chave SSH (recomendado: ed25519)
 
@@ -255,6 +255,91 @@ ssh:
 ```bash
 ssh -i ~/.ssh/id_ed25519 deploy@seu-servidor.com "docker info"
 ```
+
+## Troubleshooting
+
+### Erros comuns
+
+#### "permission denied" ao executar Docker
+
+O usuário não tem permissão para executar comandos Docker.
+
+```bash
+# Adicione o usuário ao grupo docker
+sudo usermod -aG docker $USER
+
+# Reconecte para aplicar
+exit
+# Reconecte via SSH ou faça logout/login
+```
+
+#### "Swarm not initialized"
+
+O Docker Swarm não foi inicializado no servidor.
+
+```bash
+# Execute o setup primeiro
+swarmctl setup
+```
+
+#### "connection refused" ou timeout SSH
+
+Problemas de conectividade SSH.
+
+```bash
+# Verifique se o host está acessível
+ping seu-servidor.com
+
+# Teste conexão SSH manualmente
+ssh deploy@seu-servidor.com "echo ok"
+
+# Verifique se a chave está no ssh-agent
+ssh-add -l
+```
+
+#### "network not found" durante deploy
+
+A network do stack não existe.
+
+```bash
+# Execute setup novamente
+swarmctl setup
+```
+
+#### "secret not found" no container
+
+O secret não foi criado ou o nome está incorreto.
+
+```bash
+# Liste secrets existentes
+swarmctl secrets list
+
+# Push dos secrets do .env
+swarmctl secrets push
+```
+
+#### Compose file não encontrado
+
+O caminho do `compose_file` no swarm.yaml está incorreto.
+
+```yaml
+# Verifique o caminho no swarm.yaml
+compose_file: docker-compose.yaml  # relativo ao diretório atual
+```
+
+### Modo verbose
+
+Use `-v` ou `--verbose` para output detalhado:
+
+```bash
+swarmctl deploy -v
+swarmctl status -v
+```
+
+O modo verbose mostra:
+- Comandos Docker executados
+- Output completo dos comandos
+- Detalhes de conexão SSH
 
 ## Próximos Passos
 

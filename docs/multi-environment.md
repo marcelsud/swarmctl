@@ -150,7 +150,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
 
       - name: Install swarmctl
         run: go install github.com/marcelsud/swarmctl/cmd/swarmctl@latest
