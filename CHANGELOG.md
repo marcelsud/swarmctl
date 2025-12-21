@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **CRITICAL**: Fix command injection vulnerability in accessories manager
+  - Add strict input validation for accessory names (alphanumeric + underscore only)
+  - Fix incorrect shellquote usage that could allow shell metacharacter injection
+  - Affects: `swarmctl accessory start/stop/restart` commands
+  - Impact: Remote code execution via malicious accessory names
+  
+- **CRITICAL**: Fix SSH host key verification bypass
+  - Replace `InsecureIgnoreHostKey()` with proper host key validation
+  - Use system's `known_hosts` file for verification
+  - Add fallback confirmation prompt for unknown hosts
+  - Add `SWARMCTL_INSECURE_SSH` escape hatch with explicit warning
+  - Impact: MITM attacks against SSH connections
+  
+- **CRITICAL**: Fix SSH parameter injection in worker node connections
+  - Add strict validation for targetHost and targetUser parameters
+  - Use proper shell escaping for SSH hop commands
+  - Remove insecure SSH options (`StrictHostKeyChecking=no`)
+  - Impact: Command injection on Swarm manager via malicious node configuration
+
 ### Added
 
 - `init-llm` command for creating LLM/AI assistant configuration files (CLAUDE.md, .cursorrules, AGENTS.md, copilot-instructions.md, Claude skill)
@@ -15,10 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local mode support (no SSH required) for running swarmctl locally
 - `docs` command with embedded documentation
 - Entry point for `go install` support
+- Comprehensive security tests for all injection vulnerabilities
 
 ### Fixed
 
 - Include cmd/swarmctl entry point for go install
+- Fix shellquote usage in accessories manager (intermediate variables)
+
+### Breaking Changes
+
+- Accessory names, SSH hosts, and usernames now restricted to alphanumeric characters and underscores only (no dots or hyphens allowed)
 
 ## [0.1.0] - Initial Release
 
