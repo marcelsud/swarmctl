@@ -3,8 +3,10 @@ package accessories
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
+	"github.com/kballard/go-shellquote"
 	"github.com/marcelsud/swarmctl/internal/config"
 	"github.com/marcelsud/swarmctl/internal/executor"
 )
@@ -14,6 +16,14 @@ type Manager struct {
 	exec      executor.Executor
 	stackName string
 	mode      config.DeploymentMode
+}
+
+func validateName(name string) error {
+	validName := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_]{0,62}$`)
+	if !validName.MatchString(name) {
+		return fmt.Errorf("invalid name '%s': must contain only alphanumeric characters and underscores, and start with alphanumeric", name)
+	}
+	return nil
 }
 
 // NewManager creates a new accessories manager
@@ -34,13 +44,17 @@ type AccessoryStatus struct {
 
 // Start starts an accessory service
 func (m *Manager) Start(name string) error {
+	if err := validateName(name); err != nil {
+		return err
+	}
+
 	var cmd string
 
 	if m.mode == config.ModeCompose {
-		cmd = fmt.Sprintf("docker compose -p %s start %s", m.stackName, name)
+		cmd = fmt.Sprintf("docker compose -p %s start %s", shellquote.Join(m.stackName), shellquote.Join(name))
 	} else {
 		fullName := fmt.Sprintf("%s_%s", m.stackName, name)
-		cmd = fmt.Sprintf("docker service scale %s=1", fullName)
+		cmd = fmt.Sprintf("docker service scale %s=1", shellquote.Join(fullName))
 	}
 
 	result, err := m.exec.Run(cmd)
@@ -57,13 +71,17 @@ func (m *Manager) Start(name string) error {
 
 // Stop stops an accessory service
 func (m *Manager) Stop(name string) error {
+	if err := validateName(name); err != nil {
+		return err
+	}
+
 	var cmd string
 
 	if m.mode == config.ModeCompose {
-		cmd = fmt.Sprintf("docker compose -p %s stop %s", m.stackName, name)
+		cmd = fmt.Sprintf("docker compose -p %s stop %s", shellquote.Join(m.stackName), shellquote.Join(name))
 	} else {
 		fullName := fmt.Sprintf("%s_%s", m.stackName, name)
-		cmd = fmt.Sprintf("docker service scale %s=0", fullName)
+		cmd = fmt.Sprintf("docker service scale %s=0", shellquote.Join(fullName))
 	}
 
 	result, err := m.exec.Run(cmd)
@@ -80,13 +98,17 @@ func (m *Manager) Stop(name string) error {
 
 // Restart restarts an accessory service
 func (m *Manager) Restart(name string) error {
+	if err := validateName(name); err != nil {
+		return err
+	}
+
 	var cmd string
 
 	if m.mode == config.ModeCompose {
-		cmd = fmt.Sprintf("docker compose -p %s restart %s", m.stackName, name)
+		cmd = fmt.Sprintf("docker compose -p %s restart %s", shellquote.Join(m.stackName), shellquote.Join(name))
 	} else {
 		fullName := fmt.Sprintf("%s_%s", m.stackName, name)
-		cmd = fmt.Sprintf("docker service update --force %s", fullName)
+		cmd = fmt.Sprintf("docker service update --force %s", shellquote.Join(fullName))
 	}
 
 	result, err := m.exec.Run(cmd)
@@ -110,8 +132,12 @@ func (m *Manager) GetStatus(name string) (*AccessoryStatus, error) {
 }
 
 func (m *Manager) getSwarmStatus(name string) (*AccessoryStatus, error) {
+	if err := validateName(name); err != nil {
+		return nil, err
+	}
+
 	fullName := fmt.Sprintf("%s_%s", m.stackName, name)
-	cmd := fmt.Sprintf("docker service ls --filter name=%s --format '{{.Name}}|{{.Replicas}}'", fullName)
+	cmd := fmt.Sprintf("docker service ls --filter name=%s --format '{{.Name}}|{{.Replicas}}'", shellquote.Join(fullName))
 
 	result, err := m.exec.Run(cmd)
 	if err != nil {
@@ -138,7 +164,11 @@ func (m *Manager) getSwarmStatus(name string) (*AccessoryStatus, error) {
 }
 
 func (m *Manager) getComposeStatus(name string) (*AccessoryStatus, error) {
-	cmd := fmt.Sprintf("docker compose -p %s ps %s --format json", m.stackName, name)
+	if err := validateName(name); err != nil {
+		return nil, err
+	}
+
+	cmd := fmt.Sprintf("docker compose -p %s ps %s --format json", shellquote.Join(m.stackName), shellquote.Join(name))
 
 	result, err := m.exec.Run(cmd)
 	if err != nil {

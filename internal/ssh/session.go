@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 
+	"github.com/kballard/go-shellquote"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 )
@@ -82,8 +84,22 @@ func (c *Client) RunInteractive(cmd string) error {
 	return session.Run(cmd)
 }
 
+func validateSSHParam(param string) error {
+	validParam := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_]{0,62}$`)
+	if !validParam.MatchString(param) {
+		return fmt.Errorf("invalid SSH parameter '%s': must contain only alphanumeric characters and underscores", param)
+	}
+	return nil
+}
+
 // RunInteractiveViaHost runs a command on a remote host through SSH hop with agent forwarding
 func (c *Client) RunInteractiveViaHost(targetHost, targetUser, cmd string) error {
+	if err := validateSSHParam(targetHost); err != nil {
+		return err
+	}
+	if err := validateSSHParam(targetUser); err != nil {
+		return err
+	}
 	if c.conn == nil {
 		return fmt.Errorf("not connected")
 	}
@@ -119,8 +135,8 @@ func (c *Client) RunInteractiveViaHost(targetHost, targetUser, cmd string) error
 		return fmt.Errorf("failed to request pty: %w", err)
 	}
 
-	// Build SSH hop command
-	sshCmd := fmt.Sprintf("ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s@%s %q", targetUser, targetHost, cmd)
+	target := fmt.Sprintf("%s@%s", targetUser, targetHost)
+	sshCmd := fmt.Sprintf("ssh -tt -o StrictHostKeyChecking=yes %s %s", shellquote.Join(target), shellquote.Join(cmd))
 
 	return session.Run(sshCmd)
 }
