@@ -1,0 +1,15 @@
+# Docker Compose ultra-simples para teste
+version: "3.8"
+
+services:
+  web:
+    image: nginx:alpine
+    deploy:
+      replicas: 1
+    ports:
+      - "8090:80"
+
+  redis:
+    image: redis:alpine
+    deploy:
+      replicas: 1

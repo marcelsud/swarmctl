@@ -64,6 +64,10 @@ func (m *SwarmMockExecutor) IsLocal() bool {
 	return true
 }
 
+func (m *SwarmMockExecutor) SetVerbose(v bool) {
+	// Mock implementation - just store the value
+}
+
 func (m *SwarmMockExecutor) SetRunResult(cmd string, result *executor.CommandResult) {
 	m.runResults[cmd] = result
 }

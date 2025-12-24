@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 	"io"
+	"time"
 )
 
 // ServiceStatus represents the status of a service
@@ -14,13 +15,9 @@ type ServiceStatus struct {
 	Ports    string
 }
 
-// ContainerStatus represents the status of a container/task
-type ContainerStatus struct {
-	ID      string
-	Name    string
-	Service string
-	State   string
-	Error   string
+// DeployOptions holds options for deployment
+type DeployOptions struct {
+	SkipAccessories bool
 }
 
 // ContainerInfo holds information about a running container including its node
@@ -30,10 +27,22 @@ type ContainerInfo struct {
 	NodeIP      string
 }
 
+// ContainerStatus represents the status of a container/task
+type ContainerStatus struct {
+	ID      string
+	Name    string
+	Service string
+	State   string
+	Error   string
+}
+
 // Manager defines the interface for deployment operations
 type Manager interface {
 	// Deploy deploys the stack/project
 	Deploy(composeContent []byte) error
+
+	// DeployWithOptions deploys with filtering options
+	DeployWithOptions(composeContent []byte, options DeployOptions) error
 
 	// Remove removes the stack/project
 	Remove() error
@@ -82,6 +91,9 @@ type Manager interface {
 
 	// GetMode returns the deployment mode (swarm or compose)
 	GetMode() string
+
+	// WaitForHealthy waits for all services to become healthy
+	WaitForHealthy(timeout time.Duration) error
 }
 
 // UnsupportedOperationError is returned when an operation is not supported

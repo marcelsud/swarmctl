@@ -54,7 +54,7 @@ func runLogs(cmd *cobra.Command, args []string) {
 	// Create deployment manager
 	mgr := deployment.New(cfg, exec)
 
-	// If no service specified, list available services
+	// If no service specified, show logs from all services
 	if len(args) == 0 {
 		services, err := mgr.ListServices()
 		if err != nil {
@@ -62,16 +62,33 @@ func runLogs(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
-		fmt.Printf("%s Available services:\n", cyan("→"))
+		if len(services) == 0 {
+			fmt.Printf("%s No services running\n", cyan("→"))
+			return
+		}
+
+		fmt.Printf("%s Showing logs from all services:\n\n", cyan("→"))
 		for _, svc := range services {
 			// Extract service name (remove stack/project prefix)
 			name := svc.Name
 			if len(cfg.Stack) > 0 && len(name) > len(cfg.Stack)+1 {
 				name = name[len(cfg.Stack)+1:]
 			}
-			fmt.Printf("  - %s\n", name)
+
+			fmt.Printf("%s=== Logs for %s ===\n\n", cyan("→"), name)
+
+			// Get logs for this service
+			logs, err := mgr.GetServiceLogs(name, false, logsSince, logsTail)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "  Failed to get logs for %s: %v\n", name, err)
+				continue
+			}
+
+			fmt.Print(logs)
+			if logs != "" {
+				fmt.Println()
+			}
 		}
-		fmt.Printf("\nUsage: swarmctl logs <service>\n")
 		return
 	}
 

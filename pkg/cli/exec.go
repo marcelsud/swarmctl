@@ -21,8 +21,8 @@ If no command is provided, opens an interactive shell.
 For Swarm mode, automatically detects if the container is running on a worker
 node and uses SSH hop through the manager to reach it.
 
-Examples:
-  swarmctl exec web                    # Opens bash in web container
+ Examples:
+  swarmctl exec web                    # Opens shell in web container
   swarmctl exec web -- ls -la          # Run ls -la in web container
   swarmctl exec api -- rails console   # Run rails console in api container`,
 	Args: cobra.MinimumNArgs(1),

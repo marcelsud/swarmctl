@@ -105,6 +105,7 @@ swarmctl deploy   # Faz deploy do stack
 | `swarmctl accessory stop <name>` | Para accessory |
 | `swarmctl accessory restart <name>` | Reinicia accessory |
 | `swarmctl docs [topic]` | Mostra documentação embutida |
+| `swarmctl init-llm` | Inicializa templates de documentação LLM |
 
 ## Multi-ambiente
 
@@ -182,6 +183,7 @@ O swarmctl suporta múltiplos métodos de autenticação SSH:
 | Variável | Descrição |
 |----------|-----------|
 | `SWARMCTL_REGISTRY_PASSWORD` | Password do registry de containers |
+| `SWARMCTL_INSECURE_SSH` | Desabilita verificação de host key SSH (inseguro) |
 
 ## License
 

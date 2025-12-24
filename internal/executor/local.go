@@ -2,21 +2,33 @@ package executor
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 )
 
 // LocalExecutor executes commands on the local machine
-type LocalExecutor struct{}
+type LocalExecutor struct {
+	verbose bool
+}
 
 // NewLocal creates a new LocalExecutor
 func NewLocal() *LocalExecutor {
-	return &LocalExecutor{}
+	return &LocalExecutor{verbose: false}
+}
+
+// SetVerbose sets verbose mode for command output
+func (e *LocalExecutor) SetVerbose(v bool) {
+	e.verbose = v
 }
 
 // Run executes a command locally and returns the result
 func (e *LocalExecutor) Run(cmd string) (*CommandResult, error) {
+	if e.verbose {
+		fmt.Fprintf(os.Stderr, "→ Running: %s\n", cmd)
+	}
+
 	c := exec.Command("sh", "-c", cmd)
 
 	var stdout, stderr bytes.Buffer
@@ -39,6 +51,16 @@ func (e *LocalExecutor) Run(cmd string) (*CommandResult, error) {
 		} else {
 			return nil, err
 		}
+	}
+
+	if e.verbose {
+		if result.Stdout != "" {
+			fmt.Fprintf(os.Stderr, "→ Stdout:\n%s\n", result.Stdout)
+		}
+		if result.Stderr != "" {
+			fmt.Fprintf(os.Stderr, "→ Stderr:\n%s\n", result.Stderr)
+		}
+		fmt.Fprintf(os.Stderr, "→ Exit code: %d\n", result.ExitCode)
 	}
 
 	return result, nil

@@ -1,0 +1,12 @@
+# Configuração simples para teste
+stack: test-simple
+
+ssh:
+  host: 10.27.1.225
+  user: ubuntu
+  port: 22
+
+# Sem secrets
+# Sem accessories
+
+compose_file: docker-compose.simple.yaml

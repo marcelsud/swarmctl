@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/marcelsud/swarmctl/internal/executor"
 )
@@ -45,6 +46,17 @@ func (m *SwarmManager) Deploy(composeContent []byte) error {
 	m.exec.Run(fmt.Sprintf("rm -f %s", composePath))
 
 	return nil
+}
+
+// DeployWithOptions deploys with filtering options
+func (m *SwarmManager) DeployWithOptions(composeContent []byte, options DeployOptions) error {
+	// For now, ignore options and use regular Deploy
+	// TODO: Implement filtering for SkipAccessories
+	if options.SkipAccessories {
+		// TODO: Filter out accessories from compose content
+	}
+
+	return m.Deploy(composeContent)
 }
 
 // Remove removes the stack
@@ -359,6 +371,61 @@ func (m *SwarmManager) GetStackName() string {
 // GetMode returns the deployment mode
 func (m *SwarmManager) GetMode() string {
 	return "swarm"
+}
+
+// WaitForHealthy waits for all services to become healthy
+func (m *SwarmManager) WaitForHealthy(timeout time.Duration) error {
+	startTime := time.Now()
+	checkInterval := 5 * time.Second
+
+	fmt.Printf("→ Waiting for services to become healthy (timeout: %s)...\n", timeout)
+
+	for {
+		// Get all services
+		services, err := m.ListServices()
+		if err != nil {
+			return fmt.Errorf("failed to list services: %w", err)
+		}
+
+		if len(services) == 0 {
+			return fmt.Errorf("no services found")
+		}
+
+		allHealthy := true
+		healthyCount := 0
+		totalCount := len(services)
+
+		for _, svc := range services {
+			// Parse replicas format like "3/3" or "0/3"
+			parts := strings.Split(svc.Replicas, "/")
+			if len(parts) != 2 {
+				allHealthy = false
+				continue
+			}
+
+			running := parts[0]
+			desired := parts[1]
+
+			if running != desired || running == "0" {
+				allHealthy = false
+			} else {
+				healthyCount++
+			}
+		}
+
+		if allHealthy {
+			fmt.Printf("  ✓ All %d services are healthy\n", healthyCount)
+			return nil
+		}
+
+		elapsed := time.Since(startTime)
+		if elapsed > timeout {
+			return fmt.Errorf("timeout waiting for services to become healthy (%d/%d healthy)", healthyCount, totalCount)
+		}
+
+		fmt.Printf("  %d/%d services healthy, waiting...\n", healthyCount, totalCount)
+		time.Sleep(checkInterval)
+	}
 }
 
 func getOrEmpty(slice []string, index int) string {

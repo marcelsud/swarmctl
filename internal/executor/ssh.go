@@ -1,7 +1,9 @@
 package executor
 
 import (
+	"fmt"
 	"io"
+	"os"
 
 	"github.com/marcelsud/swarmctl/internal/config"
 	"github.com/marcelsud/swarmctl/internal/ssh"
@@ -9,7 +11,8 @@ import (
 
 // SSHExecutor executes commands on a remote machine via SSH
 type SSHExecutor struct {
-	client *ssh.Client
+	client  *ssh.Client
+	verbose bool
 }
 
 // NewSSH creates a new SSHExecutor and connects to the remote host
@@ -20,21 +23,42 @@ func NewSSH(cfg config.SSHConfig) (*SSHExecutor, error) {
 		return nil, err
 	}
 
-	return &SSHExecutor{client: client}, nil
+	return &SSHExecutor{client: client, verbose: false}, nil
 }
 
-// Run executes a command on the remote host and returns the result
+// SetVerbose sets verbose mode for command output
+func (e *SSHExecutor) SetVerbose(v bool) {
+	e.verbose = v
+}
+
+// Run executes a command on remote host and returns: result
 func (e *SSHExecutor) Run(cmd string) (*CommandResult, error) {
+	if e.verbose {
+		fmt.Fprintf(os.Stderr, "→ Running: %s\n", cmd)
+	}
+
 	result, err := e.client.Run(cmd)
 	if err != nil {
 		return nil, err
 	}
 
-	return &CommandResult{
+	cmdResult := &CommandResult{
 		Stdout:   result.Stdout,
 		Stderr:   result.Stderr,
 		ExitCode: result.ExitCode,
-	}, nil
+	}
+
+	if e.verbose {
+		if cmdResult.Stdout != "" {
+			fmt.Fprintf(os.Stderr, "→ Stdout:\n%s\n", cmdResult.Stdout)
+		}
+		if cmdResult.Stderr != "" {
+			fmt.Fprintf(os.Stderr, "→ Stderr:\n%s\n", cmdResult.Stderr)
+		}
+		fmt.Fprintf(os.Stderr, "→ Exit code: %d\n", cmdResult.ExitCode)
+	}
+
+	return cmdResult, nil
 }
 
 // RunInteractive runs a command with stdin/stdout/stderr attached

@@ -1,0 +1,17 @@
+# swarmctl configuration for local testing without registry
+stack: test-local-no-registry
+mode: compose
+
+# No SSH config for local mode
+# No registry config
+
+secrets:
+  - RAILS_MASTER_KEY
+  - DATABASE_URL
+  - POSTGRES_PASSWORD
+
+accessories:
+  - redis
+  - postgres
+
+compose_file: examples/docker-compose.yaml

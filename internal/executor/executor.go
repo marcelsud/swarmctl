@@ -32,6 +32,9 @@ type Executor interface {
 
 	// IsLocal returns true if executing locally
 	IsLocal() bool
+
+	// SetVerbose sets verbose mode for command output
+	SetVerbose(verbose bool)
 }
 
 // New creates an Executor based on the configuration.

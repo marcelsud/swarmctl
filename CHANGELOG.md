@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Comprehensive integration test suite with Multipass and Docker Swarm
+- `--verbose` flag for detailed command execution output
+- Automatic Docker secrets push during `deploy`
+- Real-time health check monitoring during `deploy`
+- Support for `deploy --service` to deploy specific services
+- Support for `deploy --skip-accessories` to skip auxiliary services
+- `logs` command now shows logs for all services when no service is specified
 - `init-llm` command for creating LLM/AI assistant configuration files (CLAUDE.md, .cursorrules, AGENTS.md, copilot-instructions.md, Claude skill)
 - `exec` support for containers running on worker nodes with automatic SSH hop through manager
 - Compose mode support for deploying with docker-compose

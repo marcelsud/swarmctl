@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/marcelsud/swarmctl/internal/executor"
 	"github.com/marcelsud/swarmctl/internal/history"
@@ -346,7 +347,63 @@ func (m *ComposeManager) extractImages(composeContent []byte) map[string]string 
 	return images
 }
 
+// DeployWithOptions deploys with filtering options
+func (m *ComposeManager) DeployWithOptions(composeContent []byte, options DeployOptions) error {
+	// For now, ignore options and use regular Deploy
+	// TODO: Implement filtering for SkipAccessories
+	if options.SkipAccessories {
+		// TODO: Filter out accessories from compose content
+	}
+
+	return m.Deploy(composeContent)
+}
+
 // GetHistory returns the history manager
 func (m *ComposeManager) GetHistory() *history.Manager {
 	return m.history
+}
+
+// WaitForHealthy waits for all services to become healthy
+func (m *ComposeManager) WaitForHealthy(timeout time.Duration) error {
+	startTime := time.Now()
+	checkInterval := 5 * time.Second
+
+	fmt.Printf("→ Waiting for services to become healthy (timeout: %s)...\n", timeout)
+
+	for {
+		// Get all containers
+		containers, err := m.GetContainerStatus()
+		if err != nil {
+			return fmt.Errorf("failed to get containers: %w", err)
+		}
+
+		if len(containers) == 0 {
+			return fmt.Errorf("no containers found")
+		}
+
+		allHealthy := true
+		healthyCount := 0
+		totalCount := len(containers)
+
+		for _, container := range containers {
+			if strings.ToLower(container.State) != "running" {
+				allHealthy = false
+			} else {
+				healthyCount++
+			}
+		}
+
+		if allHealthy {
+			fmt.Printf("  ✓ All %d containers are healthy\n", healthyCount)
+			return nil
+		}
+
+		elapsed := time.Since(startTime)
+		if elapsed > timeout {
+			return fmt.Errorf("timeout waiting for containers to become healthy (%d/%d healthy)", healthyCount, totalCount)
+		}
+
+		fmt.Printf("  %d/%d containers healthy, waiting...\n", healthyCount, totalCount)
+		time.Sleep(checkInterval)
+	}
 }

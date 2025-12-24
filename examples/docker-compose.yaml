@@ -14,8 +14,8 @@ services:
     environment:
       - RAILS_ENV=production
     secrets:
-      - rails_master_key
-      - database_url
+      - myapp-production_rails_master_key
+      - myapp-production_database_url
 
   worker:
     image: ghcr.io/myuser/myapp:latest
@@ -25,8 +25,8 @@ services:
     environment:
       - RAILS_ENV=production
     secrets:
-      - rails_master_key
-      - database_url
+      - myapp-production_rails_master_key
+      - myapp-production_database_url
 
   redis:
     image: redis:7-alpine
@@ -46,9 +46,9 @@ volumes:
   pg_data:
 
 secrets:
-  rails_master_key:
+  myapp-production_rails_master_key:
     external: true
-  database_url:
+  myapp-production_database_url:
     external: true
-  postgres_password:
+  myapp-production_postgres_password:
     external: true

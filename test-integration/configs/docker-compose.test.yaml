@@ -1,0 +1,59 @@
+# Docker Compose para teste de integração - versão simplificada
+version: "3.8"
+
+services:
+  web:
+    image: nginx:alpine
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "8080:80"
+    environment:
+      - NGINX_HOST=test.localhost
+      - NGINX_PORT=80
+    secrets:
+      - test-app_test_secret
+      - test-app_api_key
+
+  api:
+    image: traefik/whoami:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "8081:80"
+    environment:
+      - NAME=api-service
+    secrets:
+      - test-app_api_key
+
+  worker:
+    image: alpine:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    command: ["sh", "-c", "echo 'Worker started'; while true; do echo '[worker] Processing task'; sleep 30; done"]
+    environment:
+      - WORKER_ID=worker-1
+
+  redis:
+    image: redis:7-alpine
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
+
+secrets:
+  test_secret:
+    external: true
+  api_key:
+    external: true

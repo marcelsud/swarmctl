@@ -66,6 +66,10 @@ func (m *AccessoriesMockExecutor) IsLocal() bool {
 	return true
 }
 
+func (m *AccessoriesMockExecutor) SetVerbose(v bool) {
+	// Mock implementation - just store the value
+}
+
 func (m *AccessoriesMockExecutor) SetRunResult(cmd string, result *executor.CommandResult) {
 	m.runResults[cmd] = result
 }

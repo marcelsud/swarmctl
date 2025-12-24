@@ -1,0 +1,19 @@
+# Configuração de teste para swarmctl - Stack simples
+stack: test-app
+
+ssh:
+  host: 10.27.1.225
+  user: ubuntu
+  port: 22
+
+# Sem registry - usar imagens públicas
+
+secrets:
+  - TEST_SECRET
+  - API_KEY
+
+accessories:
+  - redis
+  - nginx
+
+compose_file: docker-compose.test.yaml

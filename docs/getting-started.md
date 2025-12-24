@@ -321,10 +321,9 @@ swarmctl secrets push
 #### Compose file não encontrado
 
 O caminho do `compose_file` no swarm.yaml está incorreto.
-
 ```yaml
 # Verifique o caminho no swarm.yaml
-compose_file: docker-compose.yaml  # relativo ao diretório atual
+compose_file: docker-compose.yaml  # relativo ao diretório do arquivo swarm.yaml
 ```
 
 ### Modo verbose

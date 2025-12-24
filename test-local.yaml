@@ -1,0 +1,21 @@
+# swarmctl configuration for local testing
+stack: test-local
+mode: compose
+
+# No SSH config for local mode
+
+registry:
+  url: docker.io
+  username: testuser
+  # password via env SWARMCTL_REGISTRY_PASSWORD
+
+secrets:
+  - RAILS_MASTER_KEY
+  - DATABASE_URL
+  - POSTGRES_PASSWORD
+
+accessories:
+  - redis
+  - postgres
+
+compose_file: examples/docker-compose.yaml
